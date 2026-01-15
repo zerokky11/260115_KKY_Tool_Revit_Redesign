@@ -147,6 +147,7 @@ Namespace UI.Hub
             map.Add("segmentpms:load-extract", "HandleSegmentPmsLoadExtract")
             map.Add("segmentpms:save-extract", "HandleSegmentPmsSaveExtract")
             map.Add("segmentpms:register-pms", "HandleSegmentPmsRegisterPms")
+            map.Add("segmentpms:pms-template", "HandleSegmentPmsExportTemplate")
             map.Add("segmentpms:prepare-mapping", "HandleSegmentPmsPrepareMapping")
             map.Add("segmentpms:run", "HandleSegmentPmsRun")
             map.Add("segmentpms:save-result", "HandleSegmentPmsSaveResult")

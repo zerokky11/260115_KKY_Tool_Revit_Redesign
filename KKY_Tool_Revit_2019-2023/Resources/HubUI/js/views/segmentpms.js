@@ -120,15 +120,18 @@ export function renderSegmentPms(root) {
   chHeader.innerHTML = '<h3>2단계: 검토 (추출 Excel + PMS)</h3>';
   const chActions = div('segmentpms-actions-row');
   const btnRegisterPms = cardBtn('PMS 등록/업데이트', () => { setBusy(true, 'PMS 불러오는 중'); state.busy = true; updateButtons(); post('segmentpms:register-pms', {}); });
+  const btnTemplate = cardBtn('PMS 양식 추출하기', () => { setBusy(true, 'PMS 양식 저장 중'); state.busy = true; updateButtons(); post('segmentpms:pms-template', {}); });
   const btnPrepare = cardBtn('매핑 준비', onPrepareMapping);
   const btnRun = cardBtn('검토 시작', onRun);
   const btnSave = cardBtn('엑셀 내보내기', () => {
     if (!state.results) { toast('저장할 결과가 없습니다.', 'err'); return; }
     chooseExcelMode((mode) => post('segmentpms:save-result', { excelMode: mode || 'fast' }));
   });
-  chActions.append(btnLoadExtract, btnRegisterPms, btnPrepare, btnRun, btnSave);
+  chActions.append(btnLoadExtract, btnRegisterPms, btnTemplate, btnPrepare, btnRun, btnSave);
   chHeader.append(chActions);
-  checkSection.append(chHeader);
+  const pmsGuide = div('segmentpms-summary');
+  pmsGuide.textContent = "처음 사용자는 ‘PMS 양식 추출하기’로 샘플을 내려받아 동일 형식으로 작성하세요.";
+  checkSection.append(chHeader, pmsGuide);
 
   const groupTable = document.createElement('table'); groupTable.className = 'segmentpms-table';
   groupTable.innerHTML = '<thead><tr><th>Revit Segment 그룹</th><th>사용처</th><th>PMS Segment</th><th>추천</th></tr></thead><tbody></tbody>';
@@ -280,6 +283,7 @@ export function renderSegmentPms(root) {
     btnSaveExtract.disabled = state.busy || !state.extractLoaded;
     btnLoadExtract.disabled = state.busy;
     btnRegisterPms.disabled = state.busy;
+    btnTemplate.disabled = state.busy;
     btnPrepare.disabled = state.busy || !state.extractLoaded;
     btnRun.disabled = state.busy || !state.extractLoaded || !state.pmsLoaded;
     btnSave.disabled = state.busy || !state.results;
@@ -336,6 +340,15 @@ export function renderSegmentPms(root) {
         fillPmsOptions(document.createElement('select'));
         if (state.extractLoaded) post('segmentpms:prepare-mapping', {});
         toast('PMS를 등록했습니다.', 'ok');
+        updateButtons();
+        break;
+      case 'segmentpms:pms-template-saved':
+        setBusy(false); state.busy = false;
+        showExcelSavedDialog('PMS 양식을 저장했습니다.', msg.payload?.path, (p) => {
+          const target = p || msg.payload?.path;
+          if (!target) { toast('열 수 있는 경로가 없습니다.', 'err'); return; }
+          post('excel:open', { path: target });
+        });
         updateButtons();
         break;
       case 'segmentpms:result':

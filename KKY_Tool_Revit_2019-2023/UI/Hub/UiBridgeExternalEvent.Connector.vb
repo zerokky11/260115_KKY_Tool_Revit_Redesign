@@ -502,9 +502,10 @@ Namespace UI.Hub
                             Dim mismatchStyle As ICellStyle = CreateFillStyle(wb, baseStyle, New Byte() {&HF9, &HD3, &HD7}) ' light red
                             Dim matchStyle As ICellStyle = CreateFillStyle(wb, baseStyle, New Byte() {&HD6, &HEF, &HD6})   ' light green
                             Dim nearStyle As ICellStyle = CreateFillStyle(wb, baseStyle, New Byte() {&HFA, &HF3, &HD1})    ' light yellow
+                            Dim errorStyle As ICellStyle = CreateFillStyle(wb, baseStyle, New Byte() {&HFD, &HEA, &HCC})   ' light orange
 
                             Dim totalBase = totalRows.Select(Function(r) StripExtras(r, extrasHeaders)).ToList()
-                            WriteSheet(wb, "Total", headersTotal, totalBase, headerStyle, baseStyle, matchStyle, mismatchStyle, nearStyle, progressChannel, written, totalCount, doAutoFit)
+                            WriteSheet(wb, "Total", headersTotal, totalBase, headerStyle, baseStyle, matchStyle, mismatchStyle, nearStyle, errorStyle, progressChannel, written, totalCount, doAutoFit)
 
                             wb.Write(fs)
                         End Using
@@ -799,6 +800,7 @@ Namespace UI.Hub
                                       matchStyle As ICellStyle,
                                       mismatchStyle As ICellStyle,
                                       nearStyle As ICellStyle,
+                                      errorStyle As ICellStyle,
                                       Optional progressChannel As String = Nothing,
                                       Optional ByRef written As Integer = 0,
                                       Optional totalRows As Integer = 0,
@@ -828,7 +830,9 @@ Namespace UI.Hub
                     Dim connVal As String = SafeCellString(row, "ConnectionType")
                     Dim styleToUse As ICellStyle = baseStyle
 
-                    If IsMismatchStatus(statusVal) Then
+                    If String.Equals(statusVal, "ERROR", StringComparison.OrdinalIgnoreCase) Then
+                        styleToUse = errorStyle
+                    ElseIf IsMismatchStatus(statusVal) Then
                         styleToUse = mismatchStyle
                     ElseIf String.Equals(statusVal, "OK", StringComparison.OrdinalIgnoreCase) Then
                         styleToUse = matchStyle
