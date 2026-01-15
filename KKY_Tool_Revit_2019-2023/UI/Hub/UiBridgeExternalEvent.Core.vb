@@ -167,6 +167,8 @@ Namespace UI.Hub
             map.Add("hub:multi-run", "HandleMultiRun")
             map.Add("hub:multi-export", "HandleMultiExport")
             map.Add("hub:multi-clear", "HandleMultiClear")
+            map.Add("commonoptions:get", "HandleCommonOptionsGet")
+            map.Add("commonoptions:save", "HandleCommonOptionsSave")
 
             Dim methodName As String = Nothing
             If Not map.TryGetValue(name, methodName) Then

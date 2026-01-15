@@ -22,6 +22,41 @@ Namespace UI.Hub
             Public Property ExcludeEndDummy As Boolean
         End Class
 
+        ' === commonoptions:get ===
+        Private Sub HandleCommonOptionsGet(app As UIApplication, payload As Object)
+            Try
+                Dim stored = HubCommonOptionsStorageService.Load()
+                SendToWeb("commonoptions:loaded", New With {
+                    .extraParamsText = stored.ExtraParamsText,
+                    .targetFilterText = stored.TargetFilterText,
+                    .excludeEndDummy = stored.ExcludeEndDummy
+                })
+            Catch ex As Exception
+                SendToWeb("commonoptions:loaded", New With {
+                    .extraParamsText = "",
+                    .targetFilterText = "",
+                    .excludeEndDummy = False,
+                    .errorMessage = ex.Message
+                })
+            End Try
+        End Sub
+
+        ' === commonoptions:save ===
+        Private Sub HandleCommonOptionsSave(app As UIApplication, payload As Object)
+            Dim pd = ParsePayloadDict(payload)
+            Dim extraText As String = Convert.ToString(GetProp(pd, "extraParamsText"))
+            Dim filterText As String = Convert.ToString(GetProp(pd, "targetFilterText"))
+            Dim excludeEndDummy As Boolean = SafeBoolObj(GetProp(pd, "excludeEndDummy"), False)
+            Dim options As New HubCommonOptionsStorageService.HubCommonOptions() With {
+                .ExtraParamsText = If(extraText, String.Empty),
+                .TargetFilterText = If(filterText, String.Empty),
+                .ExcludeEndDummy = excludeEndDummy
+            }
+
+            Dim ok = HubCommonOptionsStorageService.Save(options)
+            SendToWeb("commonoptions:saved", New With {.ok = ok})
+        End Sub
+
         Private Class MultiConnectorOptions
             Public Property Enabled As Boolean
             Public Property Tol As Double = 1.0R

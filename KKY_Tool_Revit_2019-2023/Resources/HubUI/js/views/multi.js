@@ -4,6 +4,7 @@ import { post, onHost } from '../core/bridge.js';
 import { createRvtTable, renderRvtRows, getRvtName } from './rvtTable.js';
 
 const FEATURE_KEYS = ['connector', 'guid', 'points'];
+const COMMON_OPTIONS_KEY = 'kky.hub.commonOptions';
 
 export function renderMulti(root) {
   const target = root || document.getElementById('view-root') || document.getElementById('app');
@@ -33,7 +34,8 @@ export function renderMulti(root) {
       panels: {},
       controls: {},
       lastProgressPct: 0,
-      runCompleted: false
+      runCompleted: false,
+      commonSummaryEl: null
     }
   };
 
@@ -42,6 +44,7 @@ export function renderMulti(root) {
   });
 
   const page = div('feature-shell multi-page');
+  const hasLocalCommonOptions = loadCommonOptionsFromStorage();
   const header = div('feature-header multi-header');
   header.innerHTML = `
     <div class="feature-heading">
@@ -148,6 +151,12 @@ export function renderMulti(root) {
     return { wrap, section: wrap };
   }
 
+  onHost('commonoptions:loaded', (payload) => {
+    if (hasLocalCommonOptions) return;
+    applyCommonOptionsFromStorage(payload);
+    persistCommonOptions(state.common.configCommitted, { skipHost: true });
+  });
+
   function buildGroup1Options() {
     const panel = div('group-common-mini');
     const header = div('group-common-mini__header');
@@ -161,6 +170,7 @@ export function renderMulti(root) {
     header.append(title, settingsBtn);
 
     const summary = div('group-common-mini__summary');
+    state.ui.commonSummaryEl = summary;
     summary.textContent = buildCommonSummary();
     panel.append(header, summary);
 
@@ -721,6 +731,8 @@ export function renderMulti(root) {
     if (key === 'common') {
       commitConfig(state.common);
       updateCommonSummary();
+      persistCommonOptions(state.common.configCommitted);
+      emitCommonOptionsChanged();
       markStale('connector');
     } else {
       commitConfig(state.features[key]);
@@ -839,8 +851,9 @@ export function renderMulti(root) {
   }
 
   function updateCommonSummary(el) {
-    if (el) {
-      el.textContent = buildCommonSummary();
+    const target = el || state.ui.commonSummaryEl;
+    if (target) {
+      target.textContent = buildCommonSummary();
     }
     updateFeatureSummary('connector');
   }
@@ -911,6 +924,60 @@ export function renderMulti(root) {
 
   function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function normalizeCommonOptions(raw) {
+    return {
+      extraParams: typeof raw?.extraParamsText === 'string' ? raw.extraParamsText : '',
+      targetFilter: typeof raw?.targetFilterText === 'string' ? raw.targetFilterText : '',
+      excludeEndDummy: !!raw?.excludeEndDummy
+    };
+  }
+
+  function loadCommonOptionsFromStorage() {
+    let stored = null;
+    try {
+      const raw = localStorage.getItem(COMMON_OPTIONS_KEY);
+      if (raw) stored = JSON.parse(raw);
+    } catch {
+      stored = null;
+    }
+    if (stored) {
+      applyCommonOptionsFromStorage(stored);
+      return true;
+    }
+    post('commonoptions:get', { source: 'multi' });
+    return false;
+  }
+
+  function applyCommonOptionsFromStorage(stored) {
+    const normalized = normalizeCommonOptions(stored);
+    state.common.configCommitted = deepCopy(normalized);
+    state.common.configDraft = deepCopy(normalized);
+    state.common.applied = true;
+    state.common.dirty = false;
+    syncControlsFromDraft('common');
+    updateCommonSummary();
+  }
+
+  function persistCommonOptions(committed, options = {}) {
+    const payload = {
+      extraParamsText: committed.extraParams || '',
+      targetFilterText: committed.targetFilter || '',
+      excludeEndDummy: !!committed.excludeEndDummy
+    };
+    try {
+      localStorage.setItem(COMMON_OPTIONS_KEY, JSON.stringify(payload));
+    } catch {
+    }
+    if (!options.skipHost) {
+      post('commonoptions:save', payload);
+    }
+  }
+
+  function emitCommonOptionsChanged() {
+    const detail = { ...state.common.configCommitted };
+    window.dispatchEvent(new CustomEvent('commonOptions:changed', { detail }));
   }
 
   function buildCommittedFeature(key) {
