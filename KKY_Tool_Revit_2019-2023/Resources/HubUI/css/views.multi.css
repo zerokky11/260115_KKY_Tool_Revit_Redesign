@@ -3,7 +3,7 @@
     flex-direction: column;
     gap: 18px;
     color: var(--text-main);
-    height: 100%;
+    height: 100vh;
     min-height: 0;
     overflow: hidden;
 }
@@ -21,11 +21,12 @@
 
 .multi-layout {
     display: grid;
-    grid-template-columns: minmax(420px, 0.9fr) minmax(0, 1fr);
+    grid-template-columns: minmax(480px, 0.95fr) minmax(0, 1fr);
     gap: 18px;
     align-items: start;
     min-height: 0;
     flex: 1;
+    overflow: hidden;
 }
 
 .multi-left,
@@ -34,15 +35,26 @@
     flex-direction: column;
     gap: 16px;
     min-height: 0;
+    overflow-y: auto;
 }
 
 .multi-right {
-    overflow: auto;
     padding-right: 4px;
 }
 
 .multi-left {
     height: 100%;
+}
+
+.left-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 8px;
 }
 
 .multi-section {
@@ -64,6 +76,41 @@
 
 .multi-section-title h3 {
     white-space: nowrap;
+}
+
+.multi-section.is-hidden {
+    display: none;
+}
+
+.group-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-card);
+}
+
+.group-filter__btn {
+    border: 1px solid var(--border-soft);
+    background: var(--surface-subtle);
+    color: var(--text-main);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.group-filter__btn:hover {
+    border-color: var(--accent);
+}
+
+.group-filter__btn.is-active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
 }
 
 .multi-page .btn {
@@ -107,11 +154,11 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-radius: 12px;
     border: 1px solid var(--border-soft);
     background: var(--panel2);
-    min-height: 92px;
+    min-height: 64px;
 }
 
 .feature-row.is-active {
@@ -182,9 +229,11 @@
 .feature-row__left span {
     font-size: 0.82rem;
     color: var(--text-soft);
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
 }
 
 .feature-row__right {
@@ -814,12 +863,23 @@
     }
 
     .multi-page {
+        height: auto;
         overflow: auto;
     }
 
     .multi-right {
         overflow: visible;
         padding-right: 0;
+    }
+
+    .multi-left {
+        overflow: visible;
+    }
+
+    .left-sticky {
+        position: static;
+        background: transparent;
+        padding-bottom: 0;
     }
 
     .run-bar {

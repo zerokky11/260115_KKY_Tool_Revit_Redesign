@@ -3,13 +3,20 @@ import { ProgressDialog } from '../core/progress.js';
 import { post, onHost } from '../core/bridge.js';
 import { createRvtTable, renderRvtRows, getRvtName } from './rvtTable.js';
 
-  const FEATURE_META = {
-    connector: { label: '커넥터 진단', desc: 'Parameter 값 연속성 검토', requiresSharedParams: false },
-    guid: { label: 'GUID 검토', desc: '공유 파라미터 GUID 불일치 검토', requiresSharedParams: true },
-    points: { label: 'Point 추출', desc: 'Project/Survey Point 좌표 추출', requiresSharedParams: false }
-  };
+const FEATURE_META = {
+  connector: { label: '커넥터 진단', desc: 'Parameter 값 연속성 검토', requiresSharedParams: false },
+  guid: { label: 'GUID 검토', desc: '공유 파라미터 GUID 불일치 검토', requiresSharedParams: true },
+  points: { label: 'Point 추출', desc: 'Project/Survey Point 좌표 추출', requiresSharedParams: false }
+};
 const FEATURE_KEYS = Object.keys(FEATURE_META);
 const COMMON_OPTIONS_KEY = 'kky.hub.commonOptions';
+const GROUP_FILTER_KEY = 'kky.hub.multiGroupFilter';
+const GROUPS = [
+  { id: 'all', label: '전체' },
+  { id: 'bqc', label: '납품 시 BQC 검토' },
+  { id: 'periodic', label: '주기적 검토' },
+  { id: 'utility', label: '유틸리티' }
+];
 
 export function renderMulti(root) {
   const target = root || document.getElementById('view-root') || document.getElementById('app');
@@ -47,7 +54,8 @@ export function renderMulti(root) {
       runSummaryDetail: null,
       runSharedParamHint: null,
       selectedTableBody: null,
-      selectedRows: new Map()
+      selectedRows: new Map(),
+      groupFilter: 'all'
     }
   };
 
@@ -70,9 +78,9 @@ export function renderMulti(root) {
   const leftCol = div('multi-left');
   const rightCol = div('multi-right');
 
-  const group1 = buildGroupSection('납품 시 BQC 검토', '커넥터 진단 (BQC용)');
-  const group2 = buildGroupSection('주기적 검토', 'PMS / GUID / 파라미터 연동');
-  const group3 = buildGroupSection('유틸리티', '공유 파라미터 연동 / Point 추출');
+  const group1 = buildGroupSection('납품 시 BQC 검토', '커넥터 진단 (BQC용)', 'bqc');
+  const group2 = buildGroupSection('주기적 검토', 'PMS / GUID / 파라미터 연동', 'periodic');
+  const group3 = buildGroupSection('유틸리티', '공유 파라미터 연동 / Point 추출', 'utility');
 
   const group1Options = buildGroup1Options();
   group1.section.append(group1Options);
@@ -81,12 +89,17 @@ export function renderMulti(root) {
   group2.section.append(buildToggleRow('guid', buildGuidConfig()));
   group3.section.append(buildToggleRow('points', buildPointsConfig()));
 
-  leftCol.append(buildRunBar(), buildSelectedFeaturesSection(), buildRvtSection());
-  rightCol.append(group1.wrap, group2.wrap, group3.wrap);
+  const rightFilter = buildGroupFilter();
+  const leftSticky = div('left-sticky');
+  leftSticky.append(buildRunBar(), buildSelectedFeaturesSection());
+  leftCol.append(leftSticky, buildRvtSection());
+  rightCol.append(rightFilter, group1.wrap, group2.wrap, group3.wrap);
   layout.append(leftCol, rightCol);
   page.append(layout);
   page.append(buildSettingsModal());
   target.append(page);
+
+  renderGroupVisibility();
 
   onHost('hub:rvt-picked', (payload) => {
     const paths = Array.isArray(payload?.paths) ? payload.paths : [];
@@ -161,12 +174,37 @@ export function renderMulti(root) {
     updateRunSummary();
   });
 
-  function buildGroupSection(title, desc) {
+  function buildGroupSection(title, desc, groupId) {
     const wrap = div('multi-section');
+    if (groupId) wrap.dataset.group = groupId;
     const head = div('multi-section-title');
     head.innerHTML = `<h3>${title}</h3><span class="feature-note">${desc}</span>`;
     wrap.append(head);
     return { wrap, section: wrap };
+  }
+
+  function buildGroupFilter() {
+    const wrap = div('group-filter');
+    const stored = getGroupFilter();
+    state.ui.groupFilter = stored;
+    GROUPS.forEach((group) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'group-filter__btn';
+      btn.textContent = group.label;
+      btn.dataset.group = group.id;
+      btn.classList.toggle('is-active', group.id === stored);
+      btn.addEventListener('click', () => {
+        state.ui.groupFilter = group.id;
+        saveGroupFilter(group.id);
+        wrap.querySelectorAll('.group-filter__btn').forEach((el) => {
+          el.classList.toggle('is-active', el.dataset.group === group.id);
+        });
+        renderGroupVisibility();
+      });
+      wrap.append(btn);
+    });
+    return wrap;
   }
 
   onHost('commonoptions:loaded', (payload) => {
@@ -1046,6 +1084,31 @@ export function renderMulti(root) {
 
   function requiresSharedParams(key) {
     return !!FEATURE_META[key]?.requiresSharedParams;
+  }
+
+  function getGroupFilter() {
+    try {
+      return localStorage.getItem(GROUP_FILTER_KEY) || 'all';
+    } catch {
+      return 'all';
+    }
+  }
+
+  function saveGroupFilter(value) {
+    try {
+      localStorage.setItem(GROUP_FILTER_KEY, value);
+    } catch {
+    }
+  }
+
+  function renderGroupVisibility() {
+    const filter = state.ui.groupFilter || 'all';
+    const sections = rightCol.querySelectorAll('.multi-section');
+    sections.forEach((section) => {
+      const group = section.dataset.group || '';
+      const show = filter === 'all' || group === filter;
+      section.classList.toggle('is-hidden', !show);
+    });
   }
 
   function requestSharedParamStatus(context) {
