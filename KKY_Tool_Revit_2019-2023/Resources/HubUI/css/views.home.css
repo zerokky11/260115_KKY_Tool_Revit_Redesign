@@ -1,0 +1,108 @@
+.home-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.home-choice-hero h2 {
+    margin: 6px 0;
+}
+
+.home-choice-hero p {
+    color: var(--muted, #94a3b8);
+}
+
+.home-choice-grid,
+.active-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.home-choice-card,
+.active-menu-card {
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
+    background: var(--panel, rgba(15, 23, 42, 0.92));
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    color: inherit;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.home-choice-card:hover,
+.active-menu-card:hover {
+    border-color: var(--accent, #38bdf8);
+    background: var(--panel2, rgba(30, 41, 59, 0.85));
+    transform: translateY(-2px);
+}
+
+.home-choice-card__body,
+.active-menu-card__body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.home-choice-card h3,
+.active-menu-card h3 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+}
+
+.home-choice-card p,
+.active-menu-card p {
+    margin: 0;
+    color: var(--muted, #94a3b8);
+    font-size: 0.9rem;
+}
+
+.home-choice-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    color: var(--text, #e2e8f0);
+    font-size: 0.82rem;
+}
+
+.home-choice-list li {
+    padding-left: 14px;
+    position: relative;
+}
+
+.home-choice-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--accent, #38bdf8);
+}
+
+.home-choice-card__icon,
+.active-menu-card__icon {
+    font-size: 1.4rem;
+    color: var(--muted, #94a3b8);
+}
+
+.home-choice-cta,
+.active-menu-cta {
+    align-self: flex-start;
+}
+
+.active-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .home-choice-grid,
+    .active-menu-grid {
+        grid-template-columns: 1fr;
+    }
+}

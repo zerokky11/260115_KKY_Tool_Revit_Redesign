@@ -1,0 +1,341 @@
+/* Resources/HubUI/css/views.paramprop.css */
+.paramprop-page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 8px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+}
+
+.paramprop-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 14px;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+}
+
+.paramprop-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    box-sizing: border-box;
+    overflow: visible;
+    height: 100%;
+}
+
+.paramprop-picker-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 460px;
+    max-height: 520px;
+    padding: 16px 18px 26px;
+    overflow: visible;
+}
+
+.paramprop-title {
+    font-weight: 700;
+    font-size: 1.02rem;
+    margin-bottom: 4px;
+}
+
+.paramprop-subtitle {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-strong);
+}
+
+.paramprop-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.paramprop-search-row {
+    margin-bottom: 4px;
+}
+
+.paramprop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+    margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+    .paramprop-grid { grid-template-columns: 1fr; }
+}
+
+.paramprop-search {
+    flex: 1;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    background: var(--surface-muted);
+    color: var(--text-strong);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+    min-height: 34px;
+}
+
+.paramprop-search::placeholder {
+    color: var(--text-subtle);
+    opacity: 1;
+}
+
+
+.paramprop-group-box,
+.paramprop-table-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 220px;
+    max-height: 300px;
+}
+
+.paramprop-group-wrap,
+.paramprop-table-wrap {
+    flex: 1;
+    min-height: 220px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.paramprop-group-wrap {
+    padding: 6px 8px 10px 10px;
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.05);
+}
+
+.paramprop-group-box,
+.paramprop-table-box {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    background: var(--surface-panel);
+    box-shadow: var(--shadow-sm);
+    padding: 12px;
+}
+
+.paramprop-table-wrap {
+    overflow: auto;
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.05);
+    padding: 4px 6px 8px;
+}
+
+.paramprop-table,
+.paramprop-group-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+    line-height: 1.25;
+}
+
+.paramprop-table thead,
+.paramprop-group-table thead {
+    background: var(--surface-muted);
+}
+
+.paramprop-table th,
+.paramprop-table td,
+.paramprop-group-table th,
+.paramprop-group-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-soft);
+    text-align: left;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.paramprop-table th:first-child,
+.paramprop-table td:first-child,
+.paramprop-group-table th:first-child,
+.paramprop-group-table td:first-child {
+    width: 60px;
+    text-align: center;
+}
+
+.paramprop-table tr:hover,
+.paramprop-group-table tr:hover {
+    background: var(--surface-hover);
+}
+
+.paramprop-table tr.is-selected,
+.paramprop-group-table tr.is-selected {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.paramprop-table .paramprop-empty {
+    text-align: center;
+    color: var(--text-subtle);
+}
+
+.paramprop-table input[type="checkbox"] {
+    transform: scale(0.9);
+    vertical-align: middle;
+}
+
+.paramprop-options {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+.paramprop-opt {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.paramprop-opt.radios {
+    gap: 8px;
+    align-items: center;
+    border-left: 1px solid var(--border-soft);
+    padding-left: 12px;
+    margin-left: 12px;
+}
+
+.paramprop-opt.radios .opt-label {
+    margin-right: 2px;
+}
+
+.paramprop-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
+    cursor: pointer;
+}
+
+.paramprop-opt-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.paramprop-select {
+    min-width: 190px;
+    max-width: 240px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+    background: var(--surface-panel);
+    color: var(--text-strong);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+}
+
+.paramprop-select option {
+    background: var(--surface-panel);
+    color: var(--text-strong);
+}
+
+.paramprop-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.paramprop-opt label,
+.paramprop-radio span,
+.paramprop-opt .opt-label,
+.paramprop-options .opt-label {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.paramprop-opt:last-child {
+    margin-bottom: 0;
+}
+
+.paramprop-report-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 460px;
+    max-height: 520px;
+}
+
+.paramprop-report {
+    flex: 0 0 auto;
+    min-height: 120px;
+    max-height: 160px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--code-bg);
+    border: 1px solid var(--border-soft);
+    color: var(--text-default);
+    font-family: "Inter", "Pretendard", "Noto Sans KR", "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow: auto;
+}
+
+.paramprop-filters {
+    gap: 8px;
+}
+
+.paramprop-chip-btn {
+    border: 1px solid var(--border-soft);
+    background: var(--surface-muted);
+    color: var(--text-default);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.paramprop-chip-btn.is-active {
+    background: var(--accent-weak);
+    color: var(--accent-strong-text);
+    border-color: var(--accent);
+}
+
+.paramprop-detail-wrap {
+    flex: 1;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    background: var(--surface-panel);
+}
+
+.paramprop-detail {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.paramprop-detail th,
+.paramprop-detail td {
+    padding: 8px 10px;
+    border: 1px solid var(--border-soft);
+    text-align: left;
+}
+
+.paramprop-detail thead {
+    background: var(--surface-muted);
+}
+
+.opt-label {
+    font-weight: 600;
+    color: var(--text-strong);
+}

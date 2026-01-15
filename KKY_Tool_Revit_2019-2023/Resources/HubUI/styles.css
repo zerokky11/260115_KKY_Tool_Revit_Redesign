@@ -1,0 +1,171 @@
+﻿/* ==========================================================
+   Resources/HubUI/styles.css
+   - 레거시 허브 스타일 제거 후, 디버그/실험용 전역 오버라이드 전용
+   - 실제 UI 디자인/레이아웃은 다음 파일들이 담당:
+       · css/base.css
+       · css/components.css
+       · css/views.*.css
+   ========================================================== */
+
+/* 현재는 의도적으로 최소화된 상태.
+   필요한 경우에만 여기에서 전역 오버라이드/디버그 스타일을 추가한다. */
+
+/* -----------------------------
+   1) 전역 디버그 아웃라인 (선택 사용)
+   ----------------------------- */
+/* body에 kky-debug-outline 클래스를 붙이면 전체 요소 윤곽선 표시 */
+body.kky-debug-outline * {
+    outline: 1px dashed rgba(255, 0, 0, 0.25);
+    outline-offset: -1px;
+}
+
+/* -----------------------------
+   2) 뷰 루트 헬퍼 (필요 시 사용)
+   ----------------------------- */
+/* view-root 클래스는 필요 시 개별 뷰에서 래핑용으로만 사용 가능 */
+.view-root {
+    /* 기본적으로 아무 스타일도 적용하지 않는다.
+       실험용으로 margin/padding 등을 주고 싶을 때만 사용. */
+}
+
+/* -----------------------------
+   3) 기타 레거시 클래스 정리
+   ----------------------------- */
+/* 예전 topbar-left / topbar-right / home-tabs / tab-btn 등
+   기존 styles.css에서만 쓰이던 옛 클래스들은 모두 제거되었고,
+   현재 JS/HTML에서는 더 이상 사용하지 않는다.
+   - 헤더: js/core/topbar.js + css/base.css / css/views.base.css 조합이 정식 소스
+   - 홈레이아웃: js/views/home.js + css/views.base.css
+*/
+
+/* 이 파일은 의도적으로 비워두었으므로,
+   공용 테마/레이아웃 변경은 반드시 base.css / components.css / views.*.css 에서 처리한다. */
+
+/* -----------------------------
+   4) 디버그 로그 콘솔(F12)
+   ----------------------------- */
+.log-console {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 240px;
+    background: rgba(6, 10, 22, 0.96);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.55);
+    z-index: 120;
+    font-size: 12px;
+    color: #e8eaed;
+}
+
+.log-console.is-hidden {
+    display: none;
+}
+
+.log-console-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: linear-gradient(120deg, rgba(76, 201, 255, 0.16), rgba(10, 17, 34, 0.9));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.log-console-title {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-size: 12px;
+    color: #b9d7ff;
+}
+
+.log-console-close {
+    border: 0;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e8eaed;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.log-console-close:hover { background: rgba(255, 255, 255, 0.16); }
+.log-console-close:active { background: rgba(255, 255, 255, 0.22); }
+
+.log-console-body {
+    height: calc(240px - 46px);
+    padding: 10px 12px;
+    overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: rgba(6, 10, 22, 0.96);
+}
+
+.log-line {
+    margin: 0 0 4px;
+    padding: 2px 0;
+    color: #dfe7ff;
+}
+
+.log-line strong { color: #7dd3ff; }
+
+/* Topbar progress */
+.topbar-progress { margin: 4px 0 0; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 8px; border: 1px solid rgba(0,0,0,0.07); }
+.topbar-progress.hidden { display: none; }
+.topbar-progress-row { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:#555; }
+.topbar-progress-text { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.topbar-progress-pct { font-weight:700; color:#333; }
+.topbar-progress-bar { position:relative; height:6px; background:#e6e6e6; border-radius:6px; overflow:hidden; margin-top:4px; }
+.topbar-progress-fill { position:absolute; left:0; top:0; bottom:0; width:0%; background: #8aa6d4; border-radius:6px; transition:width 0.25s ease; }
+
+/* Segment PMS */
+.segmentpms-table { width:100%; border-collapse: collapse; margin-top:8px; background: var(--panel); }
+.segmentpms-table th, .segmentpms-table td { border:1px solid var(--border); padding:6px 8px; font-size:12px; color: var(--text); }
+.segmentpms-table th { background: var(--tableHeaderBg); color: var(--tableHeaderText); text-align:left; }
+.segmentpms-table tbody tr:nth-child(even) { background: var(--rowBg); }
+.segmentpms-table tbody tr:hover { background: var(--rowHoverBg); }
+.segmentpms-table .empty-row td { background: var(--rowBg); color: var(--emptyText); text-align: center; font-style: normal; }
+.segmentpms-summary { margin:6px 0; color:var(--muted); }
+.segmentpms-table td[data-status] { font-weight:bold; }
+.segmentpms-files-grid { display:grid; grid-template-columns: 1fr 0.9fr; gap:12px; }
+.segmentpms-reglist { border:1px solid var(--border); border-radius:10px; padding:10px; }
+.segmentpms-reglist ul { margin:8px 0 0; padding:0; list-style:none; }
+.segmentpms-reglist li { padding:6px 4px; border-bottom:1px solid rgba(0,0,0,0.05); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.segmentpms-actions-row { display:flex; gap:8px; flex-wrap:wrap; }
+.segmentpms-extract .card-btn, .segmentpms-check .card-btn { min-width:120px; }
+.segmentpms-table td small.segmentpms-suggest { display:block; margin-top:2px; color:#1f8a36; font-weight:600; }
+.segmentpms-extract table input[type="checkbox"] { width:16px; height:16px; }
+.segmentpms-rvtlist { max-height: 170px; overflow-y: auto; border:1px solid var(--border); border-radius:8px; padding:4px; background: var(--panel); }
+.segmentpms-rvtlist table { margin-top:0; }
+.segmentpms-path-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body::before { content:""; position:fixed; inset:0; z-index:9995; pointer-events:none; opacity:0; transition:opacity 0.2s ease; }
+body.is-busy::before { background:rgba(0,0,0,0.35); opacity:1; pointer-events:auto; }
+body[data-theme="dark"].is-busy::before { background:rgba(0,0,0,0.45); }
+
+.segmentpms-progress { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; z-index:9999; background:transparent; opacity:1; transform:translateY(0); transition:opacity 0.2s ease, transform 0.2s ease; }
+.segmentpms-progress.is-hidden { opacity:0; visibility:hidden; pointer-events:none; transform: translateY(6px); }
+.segmentpms-progress-card { pointer-events:auto; width:420px; max-width:420px; min-width:420px; height:170px; max-height:170px; min-height:170px; background:#fff; color:#111; border:1px solid rgba(0,0,0,0.08); border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.22); padding:14px 18px 16px; box-sizing:border-box; display:flex; flex-direction:column; gap:6px; }
+[data-theme="dark"] .segmentpms-progress-card { background:#1c1f2a; color:#e9ecf4; border-color:rgba(255,255,255,0.08); box-shadow:0 10px 30px rgba(0,0,0,0.45); }
+[data-theme] body.is-busy .segmentpms-progress-card { pointer-events:auto; }
+.segmentpms-progress-title { font-size:15px; font-weight:700; line-height:20px; height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.segmentpms-progress-detail { font-size:13px; color:#4b5563; line-height:16px; height:32px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient: vertical; overflow:hidden; text-overflow:ellipsis; }
+[data-theme="dark"] .segmentpms-progress-detail { color:#c3cbd9; }
+.segmentpms-progress-meta { font-size:12px; color:#6b7280; line-height:16px; height:32px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient: vertical; overflow:hidden; text-overflow:ellipsis; }
+[data-theme="dark"] .segmentpms-progress-meta { color:#9ba3b4; }
+.segmentpms-progress-bar { height:10px; background:#f0f2f5; border-radius:999px; overflow:hidden; border:1px solid rgba(0,0,0,0.05); }
+[data-theme="dark"] .segmentpms-progress-bar { background:#2b3040; border-color:rgba(255,255,255,0.08); }
+.segmentpms-progress-fill { height:100%; width:0%; background: linear-gradient(90deg, #4cc9f0, #4361ee); transition: width 0.25s ease; }
+.segmentpms-progress-pct { text-align:right; font-weight:700; font-size:13px; margin-top:4px; color:#1f2937; height:18px; line-height:18px; }
+[data-theme="dark"] .segmentpms-progress-pct { color:#f1f5f9; }
+
+/* Excel mode dialog */
+.excelmode-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.38); display:flex; align-items:center; justify-content:center; z-index:12000; }
+[data-theme="dark"] .excelmode-backdrop { background:rgba(0,0,0,0.5); }
+.excelmode-dialog { width:420px; max-width:90vw; background:#fff; color:#111; border-radius:12px; padding:18px; box-shadow:0 12px 32px rgba(0,0,0,0.3); }
+[data-theme="dark"] .excelmode-dialog { background:#1f2430; color:#e5e7eb; box-shadow:0 12px 32px rgba(0,0,0,0.5); }
+.excelmode-title { font-size:16px; font-weight:700; margin-bottom:8px; }
+.excelmode-desc { font-size:13px; color:#4b5563; margin-bottom:14px; line-height:1.5; }
+[data-theme="dark"] .excelmode-desc { color:#c7cbd4; }
+.excelmode-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.excelmode-actions .btn { min-width:120px; }

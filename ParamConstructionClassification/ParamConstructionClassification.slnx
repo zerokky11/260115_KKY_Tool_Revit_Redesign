@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="ParamConstructionClassification.vbproj" Id="5f3d0b5d-9e2c-4f36-9343-5c8e6a9d9e11">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>

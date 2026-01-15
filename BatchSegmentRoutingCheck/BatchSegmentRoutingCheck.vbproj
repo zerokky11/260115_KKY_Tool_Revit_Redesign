@@ -1,0 +1,96 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+		<RootNamespace>BatchSegmentRoutingCheck</RootNamespace>
+		<AssemblyName>BatchSegmentRoutingCheck</AssemblyName>
+		<TargetFramework>net48</TargetFramework>
+
+		<OptionStrict>On</OptionStrict>
+		<OptionExplicit>On</OptionExplicit>
+		<OptionInfer>On</OptionInfer>
+
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<!-- Revit은 64-bit -->
+		<Platforms>x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+
+		<!-- AssemblyInfo 중복 방지 -->
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+		<!-- PackageReference(.NET Framework) 의존성 복사 안정화 -->
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+		<!-- VS Fast Up-to-date Check가 MSBuild를 스킵하면 AfterTargets가 안 돎 -->
+		<DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+
+		<!-- 환경별 경로 커스터마이즈용(필요하면 여기만 수정) -->
+		<Revit2019Dir Condition="'$(Revit2019Dir)'==''">C:\Program Files\Autodesk\Revit 2019</Revit2019Dir>
+		<RevitAddins2019Dir Condition="'$(RevitAddins2019Dir)'==''">C:\ProgramData\Autodesk\Revit\Addins\2019</RevitAddins2019Dir>
+
+		<!-- AddInId 고정 -->
+		<RevitAddinId Condition="'$(RevitAddinId)'==''">7B6B6D6F-5B56-4D6E-9F3C-8E5B6F5F8F3A</RevitAddinId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>$(Revit2019Dir)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(Revit2019Dir)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Drawing" />
+		<Reference Include="System.Data" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="NPOI" Version="2.7.1" />
+	</ItemGroup>
+
+	<!-- Build 후: ProgramData Addins\2019에 .addin 자동 생성 (DLL은 빌드 산출물 $(TargetPath)를 직접 참조) -->
+	<Target Name="WriteRevitAddin" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+
+		<PropertyGroup>
+			<_AddinFile>$(RevitAddins2019Dir)\$(AssemblyName).addin</_AddinFile>
+			<_AsmPath>$(TargetPath)</_AsmPath>
+			<_FullClassName>$(RootNamespace).CmdBatchSegmentAndRouting</_FullClassName>
+		</PropertyGroup>
+
+		<!-- 어디로 쓰는지 빌드 출력에 강제로 표시 -->
+		<Message Importance="high" Text="### WriteRevitAddin running" />
+		<Message Importance="high" Text="RevitAddins2019Dir = '$(RevitAddins2019Dir)'" />
+		<Message Importance="high" Text="AddinFile          = '$(_AddinFile)'" />
+		<Message Importance="high" Text="TargetPath         = '$(_AsmPath)'" />
+
+		<Error Condition="!Exists('$(TargetPath)')" Text="Target DLL not found: $(TargetPath)" />
+
+		<MakeDir Directories="$(RevitAddins2019Dir)" Condition="!Exists('$(RevitAddins2019Dir)')" />
+
+		<ItemGroup>
+			<_AddinLines Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<_AddinLines Include="&lt;RevitAddIns&gt;" />
+			<_AddinLines Include="  &lt;AddIn Type=&quot;Command&quot;&gt;" />
+			<_AddinLines Include="    &lt;Name&gt;$(AssemblyName)&lt;/Name&gt;" />
+			<_AddinLines Include="    &lt;Assembly&gt;$(_AsmPath)&lt;/Assembly&gt;" />
+			<_AddinLines Include="    &lt;AddInId&gt;$(RevitAddinId)&lt;/AddInId&gt;" />
+			<_AddinLines Include="    &lt;FullClassName&gt;$(_FullClassName)&lt;/FullClassName&gt;" />
+			<_AddinLines Include="    &lt;Text&gt;Batch Segment / Routing Check&lt;/Text&gt;" />
+			<_AddinLines Include="    &lt;VisibilityMode&gt;AlwaysVisible&lt;/VisibilityMode&gt;" />
+			<_AddinLines Include="    &lt;VendorId&gt;KKY&lt;/VendorId&gt;" />
+			<_AddinLines Include="    &lt;VendorDescription&gt;KKY Batch Segment / Routing Check&lt;/VendorDescription&gt;" />
+			<_AddinLines Include="  &lt;/AddIn&gt;" />
+			<_AddinLines Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(_AddinFile)" Lines="@(_AddinLines)" Overwrite="true" Encoding="UTF-8" />
+
+		<Message Importance="high" Text="### .addin written: $(_AddinFile)" />
+
+	</Target>
+
+</Project>

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+	<AddIn Type="Command">
+		<Name>KKY_Tool_Revit</Name>
+		<Assembly>$(AssemblyPathToken)</Assembly>
+		<AddInId>8D83DB0A-B739-4ACD-A9DB-7B57A229D2A4</AddInId>
+		<FullClassName>KKY_Tool_Revit.KKY_Tool_Revit.CmdOpenHub</FullClassName>
+		<VendorId>KKY</VendorId>
+		<VendorDescription>KKY Tools Hub</VendorDescription>
+	</AddIn>
+</RevitAddIns>

@@ -1,0 +1,108 @@
+/* ==========================================================
+   Export Points view styles
+   ========================================================== */
+
+.kkyt-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 0;
+}
+
+.kkyt-left,
+.kkyt-right {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-soft);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-soft);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.kkyt-toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-soft);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-soft);
+}
+
+.kkyt-list {
+    min-height: 220px;
+    max-height: 320px;
+}
+
+.kkyt-hint {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
+
+.kkyt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+}
+
+.kkyt-table th,
+.kkyt-table td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 6px;
+    text-align: left;
+    color: var(--text);
+}
+
+.kkyt-table th {
+    background: var(--tableHeaderBg);
+    color: var(--tableHeaderText);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.kkyt-table thead th.group {
+    text-align: center;
+    color: var(--tableHeaderText);
+}
+
+.kkyt-table tbody tr:nth-child(even) {
+    background: var(--rowBg);
+}
+
+.kkyt-table tbody tr:hover {
+    background: var(--rowHoverBg);
+}
+
+.unit-toggle {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 1px dashed var(--border-soft);
+    background: var(--rowBg);
+    font-size: 0.82rem;
+}
+
+.unit-toggle label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.export-table-wrap {
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow: auto;
+    max-height: 320px;
+    min-height: 220px;
+    background: var(--panel);
+    padding: 6px 0;
+}

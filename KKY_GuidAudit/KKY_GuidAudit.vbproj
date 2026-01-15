@@ -1,0 +1,132 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop" ToolsVersion="Current">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<UseWPF>false</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<!-- 너 메인 프로젝트랑 동일하게 맞춤 -->
+		<RootNamespace>KKY_Tool_Revit</RootNamespace>
+		<AssemblyName>KKY_GuidAudit</AssemblyName>
+
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<OptionStrict>Off</OptionStrict>
+		<OptionInfer>On</OptionInfer>
+		<Deterministic>false</Deterministic>
+
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+		<EnableDefaultItems>false</EnableDefaultItems>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+		<Platforms>AnyCPU;x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+
+		<!-- Addins 루트: %ProgramData% 폴백 포함 (메인 vbproj와 동일 패턴) -->
+		<ProgramDataPath>$([System.Environment]::GetEnvironmentVariable('ProgramData'))</ProgramDataPath>
+		<ProgramDataPath Condition="'$(ProgramDataPath)'==''">C:\ProgramData</ProgramDataPath>
+		<AddinRoot>$(ProgramDataPath)\Autodesk\Revit\Addins</AddinRoot>
+
+		<!-- 기본 연도/출력 -->
+		<RevitYear Condition="'$(RevitYear)'==''">2019</RevitYear>
+		<BaseOutputPath>bin\Rvt$(RevitYear)\</BaseOutputPath>
+		<OutputPath>$(BaseOutputPath)</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+		<!-- VB 조건부 컴파일(원하면) -->
+		<DefineConstants>REVIT$(RevitYear)=1</DefineConstants>
+	</PropertyGroup>
+
+	<!-- ✅ 공통 API 경로 계산 (repo 내 Compile\{연도}addin 사용) -->
+	<PropertyGroup>
+		<RevitApiDirCandidate0>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\Compile\$(RevitYear)addin'))</RevitApiDirCandidate0>
+		<RevitApiDirCandidate1>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate1>
+		<RevitApiDirCandidate2>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate2>
+
+		<RevitApiDir Condition="Exists('$(RevitApiDirCandidate0)\RevitAPI.dll')">$(RevitApiDirCandidate0)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate1)\RevitAPI.dll')">$(RevitApiDirCandidate1)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate2)\RevitAPI.dll')">$(RevitApiDirCandidate2)</RevitApiDir>
+	</PropertyGroup>
+
+	<Target Name="CheckRevitApiDir" BeforeTargets="ResolveReferences">
+		<Message Text="RevitYear=$(RevitYear), RevitApiDir=$(RevitApiDir)" Importance="high" />
+		<Error Condition="'$(RevitApiDir)'==''"
+			   Text="Local Revit API folder not found. Put RevitAPI.dll &amp; RevitAPIUI.dll under (one of) Compile\$(RevitYear)addin relative to this project folder." />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPI.dll')"
+			   Text="RevitAPI.dll not found: $(RevitApiDir)\RevitAPI.dll (local Compile\$(RevitYear)addin)" />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPIUI.dll')"
+			   Text="RevitAPIUI.dll not found: $(RevitApiDir)\RevitAPIUI.dll (local Compile\$(RevitYear)addin)" />
+	</Target>
+
+	<!-- 불필요 기본항목 제거 -->
+	<ItemGroup>
+		<Compile Remove="**\*.vb" />
+		<Page Remove="**\*.xaml" />
+	</ItemGroup>
+
+	<!-- NuGet (엑셀 저장용) -->
+	<ItemGroup>
+		<PackageReference Include="NPOI" Version="2.6.1" />
+	</ItemGroup>
+
+	<!-- Revit API 참조 -->
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- WinForms 기본 참조 -->
+	<ItemGroup>
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Drawing" />
+	</ItemGroup>
+
+	<!-- 코드 포함 -->
+	<ItemGroup>
+		<Compile Include="GuidAuditCommand.vb" />
+	</ItemGroup>
+
+	<!-- ✅ 빌드마다 .addin 생성: Command 로드 -->
+	<Target Name="CreateAddin" AfterTargets="Build">
+		<PropertyGroup>
+			<AddinOutDir>$(AddinRoot)\$(RevitYear)</AddinOutDir>
+			<BuiltDll>$(OutputPath)$(AssemblyName).dll</BuiltDll>
+			<BuiltDllFull>$([System.IO.Path]::GetFullPath('$(BuiltDll)'))</BuiltDllFull>
+			<AddinFile>$(AddinOutDir)\KKY_GuidAudit.addin</AddinFile>
+
+			<!-- CmdGuidAudit가 GuidAuditCommand.vb에 있어야 함 -->
+			<AddinFullClassName>KKY_Tool_Revit.CmdGuidAudit</AddinFullClassName>
+
+			<!-- 고정 GUID (원하면 바꿔도 됨) -->
+			<AddinIdGuid>D6B7C1A1-7E34-4A3C-9E70-51D3C9F4F7B2</AddinIdGuid>
+		</PropertyGroup>
+
+		<Message Text="AddinOutDir=$(AddinOutDir)" Importance="high" />
+		<Message Text="BuiltDllFull=$(BuiltDllFull)" Importance="high" />
+		<MakeDir Directories="$(AddinOutDir)" />
+
+		<ItemGroup>
+			<AddinXml Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<AddinXml Include="&lt;RevitAddIns&gt;" />
+			<AddinXml Include="  &lt;AddIn Type=&quot;Command&quot;&gt;" />
+			<AddinXml Include="    &lt;Name&gt;KKY_GuidAudit&lt;/Name&gt;" />
+			<AddinXml Include="    &lt;Assembly&gt;$(BuiltDllFull)&lt;/Assembly&gt;" />
+			<AddinXml Include="    &lt;AddInId&gt;$(AddinIdGuid)&lt;/AddInId&gt;" />
+			<AddinXml Include="    &lt;FullClassName&gt;$(AddinFullClassName)&lt;/FullClassName&gt;" />
+			<AddinXml Include="    &lt;VendorId&gt;KKY&lt;/VendorId&gt;" />
+			<AddinXml Include="    &lt;VendorDescription&gt;GUID Audit Test&lt;/VendorDescription&gt;" />
+			<AddinXml Include="  &lt;/AddIn&gt;" />
+			<AddinXml Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(AddinFile)" Lines="@(AddinXml)" Overwrite="true" />
+		<Message Text="Created: $(AddinFile)" Importance="high" />
+	</Target>
+
+</Project>

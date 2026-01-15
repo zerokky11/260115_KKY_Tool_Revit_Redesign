@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>KKY_Tool_Revit</Name>
+    <Assembly>$(AppData)\Autodesk\Revit\Addins\2019\KKY_Tool_Revit\KKY_Tool_Revit_merged.dll</Assembly>
+    <AddInId>2E8C9B7E-6E8C-4F54-A3C3-1D2C5DA6B5B1</AddInId>
+    <FullClassName>KKY_Tool_Revit.KKY_Tool_Revit.APP</FullClassName>
+    <VendorId>KKY</VendorId>
+    <VendorDescription>KKY Toolkit</VendorDescription>
+  </AddIn>
+</RevitAddIns>

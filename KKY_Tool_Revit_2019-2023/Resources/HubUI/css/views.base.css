@@ -1,0 +1,8 @@
+:root {
+    --topbar-h: 56px;
+    --dup-head-h: 44px;
+}
+
+.view-root {
+    width: 100%;
+}

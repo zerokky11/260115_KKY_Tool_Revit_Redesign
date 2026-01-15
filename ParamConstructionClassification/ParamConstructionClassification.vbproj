@@ -1,0 +1,132 @@
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+	<!-- 공용 props -->
+	<Import Project="$(MSBuildToolsPath)\Microsoft.Common.props"
+			Condition="Exists('$(MSBuildToolsPath)\Microsoft.Common.props')" />
+
+	<PropertyGroup>
+		<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+		<Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+		<ProjectGuid>{5F3D0B5D-9E2C-4F36-9343-5C8E6A9D9E11}</ProjectGuid>
+		<OutputType>Library</OutputType>
+		<RootNamespace>ParamConstructionClassification</RootNamespace>
+		<AssemblyName>ParamConstructionClassification</AssemblyName>
+		<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+		<OptionExplicit>On</OptionExplicit>
+		<OptionStrict>Off</OptionStrict>
+		<OptionInfer>On</OptionInfer>
+		<MyType>Windows</MyType>
+		<PlatformTarget>x64</PlatformTarget>
+	</PropertyGroup>
+
+	<!-- Debug | x64 -->
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>bin\x64\Debug\</OutputPath>
+	</PropertyGroup>
+
+	<!-- Release | x64 -->
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>pdbonly</DebugType>
+		<Optimize>true</Optimize>
+		<OutputPath>bin\x64\Release\</OutputPath>
+	</PropertyGroup>
+
+	<!-- 참조 -->
+	<ItemGroup>
+		<Reference Include="System" />
+		<Reference Include="System.Core" />
+		<Reference Include="System.Data" />
+		<Reference Include="System.Xml" />
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Drawing" />
+
+		<Reference Include="RevitAPI">
+			<HintPath>C:\Program Files\Autodesk\Revit 2019\RevitAPI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+
+		<Reference Include="RevitAPIUI">
+			<HintPath>C:\Program Files\Autodesk\Revit 2019\RevitAPIUI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+
+		<!-- NPOI: 실제 있는 DLL 이름/경로 기준 -->
+		<Reference Include="NPOI.Core">
+			<HintPath>..\KKY_Tool_Revit_2019-2023\NPOI.Core.dll</HintPath>
+		</Reference>
+
+		<Reference Include="NPOI.OOXML">
+			<HintPath>..\KKY_Tool_Revit_2019-2023\NPOI.OOXML.dll</HintPath>
+		</Reference>
+
+		<Reference Include="NPOI.OpenXml4Net">
+			<HintPath>..\KKY_Tool_Revit_2019-2023\NPOI.OpenXml4Net.dll</HintPath>
+		</Reference>
+
+		<Reference Include="NPOI.OpenXmlFormats">
+			<HintPath>..\KKY_Tool_Revit_2019-2023\NPOI.OpenXmlFormats.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<!-- 코드 파일 -->
+	<ItemGroup>
+		<Compile Include="CmdCheckParameterCombinations.vb" />
+	</ItemGroup>
+
+	<!-- .addin 파일 내용 전체 -->
+	<PropertyGroup>
+		<AddinFileContent>
+			&lt;RevitAddIns&gt;
+			&lt;AddIn Type=&quot;Command&quot;&gt;
+			&lt;Name&gt;ParamConstructionClassification&lt;/Name&gt;
+			&lt;Assembly&gt;ParamConstructionClassification\ParamConstructionClassification.dll&lt;/Assembly&gt;
+			&lt;AddInId&gt;{8F7E6E0F-3B6A-4D2E-B0A4-5B7E99C84123}&lt;/AddInId&gt;
+			&lt;FullClassName&gt;ParamConstructionClassification.CmdCheckParameterCombinations&lt;/FullClassName&gt;
+			&lt;VendorId&gt;KKY&lt;/VendorId&gt;
+			&lt;VendorDescription&gt;Parameter combination checker&lt;/VendorDescription&gt;
+			&lt;/AddIn&gt;
+			&lt;/RevitAddIns&gt;
+		</AddinFileContent>
+	</PropertyGroup>
+
+	<Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+
+	<!-- 빌드 후 .addin + DLL 복사 -->
+	<Target Name="WriteAddinFile" AfterTargets="Build">
+		<PropertyGroup>
+			<RevitAddinsRoot>C:\ProgramData\Autodesk\Revit\Addins\2019</RevitAddinsRoot>
+			<PluginFolder>$(RevitAddinsRoot)\ParamConstructionClassification</PluginFolder>
+			<AddinFile>$(RevitAddinsRoot)\ParamConstructionClassification.addin</AddinFile>
+			<LocalAddinFile>$(TargetDir)ParamConstructionClassification.addin</LocalAddinFile>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(PluginFolder)"
+				 Condition="!Exists('$(PluginFolder)')"
+				 ContinueOnError="true" />
+
+		<ItemGroup>
+			<BuildOutput Include="$(TargetDir)*.*" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(BuildOutput)"
+			  DestinationFolder="$(PluginFolder)"
+			  SkipUnchangedFiles="true"
+			  ContinueOnError="true" />
+
+		<!-- bin\x64\Debug 에 로컬 .addin 생성 -->
+		<WriteLinesToFile
+		  File="$(LocalAddinFile)"
+		  Lines="$(AddinFileContent)"
+		  Overwrite="true" />
+
+		<!-- ProgramData 루트에 .addin 복사 -->
+		<Copy SourceFiles="$(LocalAddinFile)"
+			  DestinationFiles="$(AddinFile)"
+			  ContinueOnError="true" />
+	</Target>
+
+</Project>

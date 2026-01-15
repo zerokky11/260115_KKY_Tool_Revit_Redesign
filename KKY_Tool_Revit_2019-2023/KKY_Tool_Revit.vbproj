@@ -1,0 +1,229 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop" ToolsVersion="Current">
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<RootNamespace>KKY_Tool_Revit</RootNamespace>
+		<AssemblyName>KKY_Tool_Revit</AssemblyName>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<OptionStrict>Off</OptionStrict>
+		<OptionInfer>On</OptionInfer>
+		<Deterministic>false</Deterministic>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<EnableDefaultItems>false</EnableDefaultItems>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<Platforms>AnyCPU;x64</Platforms>
+
+		<!-- ====== Revit 설치 경로 자동 탐색 ====== -->
+		<!-- 1) 환경변수 우선 -->
+		<RevitInstall2019 Condition="'$(RevitInstall2019)'=='' and '$([System.Environment]::GetEnvironmentVariable(`REVIT2019_DIR`))'!=''">$([System.Environment]::GetEnvironmentVariable('REVIT2019_DIR'))</RevitInstall2019>
+		<RevitInstall2021 Condition="'$(RevitInstall2021)'=='' and '$([System.Environment]::GetEnvironmentVariable(`REVIT2021_DIR`))'!=''">$([System.Environment]::GetEnvironmentVariable('REVIT2021_DIR'))</RevitInstall2021>
+		<RevitInstall2023 Condition="'$(RevitInstall2023)'=='' and '$([System.Environment]::GetEnvironmentVariable(`REVIT2023_DIR`))'!=''">$([System.Environment]::GetEnvironmentVariable('REVIT2023_DIR'))</RevitInstall2023>
+		<!-- 2) 레지스트리 (64bit / WOW6432 폴백) -->
+		<Revit2019_Reg64>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\Autodesk\Revit\Autodesk Revit 2019','InstallLocation',''))</Revit2019_Reg64>
+		<Revit2021_Reg64>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\Autodesk\Revit\Autodesk Revit 2021','InstallLocation',''))</Revit2021_Reg64>
+		<Revit2023_Reg64>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\Autodesk\Revit\Autodesk Revit 2023','InstallLocation',''))</Revit2023_Reg64>
+		<Revit2019_Reg32>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Autodesk\Revit\Autodesk Revit 2019','InstallLocation',''))</Revit2019_Reg32>
+		<Revit2021_Reg32>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Autodesk\Revit\Autodesk Revit 2021','InstallLocation',''))</Revit2021_Reg32>
+		<Revit2023_Reg32>$([MSBuild]::GetRegistryValue('HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Autodesk\Revit\Autodesk Revit 2023','InstallLocation',''))</Revit2023_Reg32>
+		<RevitInstall2019 Condition="'$(RevitInstall2019)'=='' and '$(Revit2019_Reg64)'!=''">$(Revit2019_Reg64)</RevitInstall2019>
+		<RevitInstall2019 Condition="'$(RevitInstall2019)'=='' and '$(Revit2019_Reg32)'!=''">$(Revit2019_Reg32)</RevitInstall2019>
+		<RevitInstall2021 Condition="'$(RevitInstall2021)'=='' and '$(Revit2021_Reg64)'!=''">$(Revit2021_Reg64)</RevitInstall2021>
+		<RevitInstall2021 Condition="'$(RevitInstall2021)'=='' and '$(Revit2021_Reg32)'!=''">$(Revit2021_Reg32)</RevitInstall2021>
+		<RevitInstall2023 Condition="'$(RevitInstall2023)'=='' and '$(Revit2023_Reg64)'!=''">$(Revit2023_Reg64)</RevitInstall2023>
+		<RevitInstall2023 Condition="'$(RevitInstall2023)'=='' and '$(Revit2023_Reg32)'!=''">$(Revit2023_Reg32)</RevitInstall2023>
+		<!-- 3) 최종 폴백 -->
+		<RevitInstall2019 Condition="'$(RevitInstall2019)'==''">C:\Program Files\Autodesk\Revit 2019</RevitInstall2019>
+		<RevitInstall2021 Condition="'$(RevitInstall2021)'==''">C:\Program Files\Autodesk\Revit 2021</RevitInstall2021>
+		<RevitInstall2023 Condition="'$(RevitInstall2023)'==''">C:\Program Files\Autodesk\Revit 2023</RevitInstall2023>
+
+		<!-- Addins 루트: %ProgramData% 폴백 포함 -->
+		<ProgramDataPath>$([System.Environment]::GetEnvironmentVariable('ProgramData'))</ProgramDataPath>
+		<ProgramDataPath Condition="'$(ProgramDataPath)'==''">C:\ProgramData</ProgramDataPath>
+		<AddinRoot>$(ProgramDataPath)\Autodesk\Revit\Addins</AddinRoot>
+
+		<!-- 기본 연도/출력 -->
+		<RevitYear Condition="'$(RevitYear)'==''">2019</RevitYear>
+		<BaseOutputPath>bin\Rvt$(RevitYear)\</BaseOutputPath>
+		<OutputPath>$(BaseOutputPath)</OutputPath>
+
+		<!-- VB 조건부 컴파일 -->
+		<DefineConstants>REVIT$(RevitYear)=1</DefineConstants>
+
+		<FileUpgradeFlags>40</FileUpgradeFlags>
+		<UpgradeBackupLocation>C:\Users\manager\Desktop\KKY_Tool_Revit\KKY_Tool_Revit_2019-2023\Backup1\</UpgradeBackupLocation>
+		<OldToolsVersion>Current</OldToolsVersion>
+	</PropertyGroup>
+
+	<!-- ✅ 공통 API 경로 계산 (설치폴더 대신 repo 내 Compile\{연도}addin 사용) -->
+	<PropertyGroup>
+		<!-- 후보 경로들(압축 풀 때 폴더명이 바뀌어도 상대경로로 추적) -->
+		<RevitApiDirCandidate0>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\Compile\$(RevitYear)addin'))</RevitApiDirCandidate0>
+		<RevitApiDirCandidate1>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate1>
+		<RevitApiDirCandidate2>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate2>
+
+		<RevitApiDir Condition="Exists('$(RevitApiDirCandidate0)\RevitAPI.dll')">$(RevitApiDirCandidate0)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate1)\RevitAPI.dll')">$(RevitApiDirCandidate1)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate2)\RevitAPI.dll')">$(RevitApiDirCandidate2)</RevitApiDir>
+	</PropertyGroup>
+
+	<!-- 빌드 전에 API 경로 검증 -->
+	<Target Name="CheckRevitApiDir" BeforeTargets="ResolveReferences">
+		<Message Text="RevitYear=$(RevitYear), RevitApiDir=$(RevitApiDir)" Importance="high" />
+		<Error Condition="'$(RevitApiDir)'==''" Text="Local Revit API folder not found. Put RevitAPI.dll &amp; RevitAPIUI.dll under (one of) Compile\$(RevitYear)addin relative to this project folder." />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPI.dll')" Text="RevitAPI.dll not found: $(RevitApiDir)\RevitAPI.dll (local Compile\$(RevitYear)addin)" />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPIUI.dll')" Text="RevitAPIUI.dll not found: $(RevitApiDir)\RevitAPIUI.dll (local Compile\$(RevitYear)addin)" />
+	</Target>
+
+	<!-- 불필요 기본항목 제거 -->
+	<ItemGroup>
+		<Compile Remove="**\*.vb" />
+		<Page Remove="**\*.xaml" />
+	</ItemGroup>
+
+	<!-- NuGet -->
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+		<PackageReference Include="NPOI" Version="2.6.1" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+	</ItemGroup>
+
+	<!-- Revit API 참조 -->
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- WPF/기본 참조 -->
+	<ItemGroup>
+		<Reference Include="PresentationCore" />
+		<Reference Include="PresentationFramework" />
+		<Reference Include="WindowsBase" />
+		<Reference Include="System.Xaml" />
+		<Reference Include="System.Web.Extensions" />
+	</ItemGroup>
+
+	<!-- 코드 포함 -->
+	<ItemGroup>
+		<Compile Include="APP.vb" />
+		<Compile Include="Commands\CmdOpenHub.vb" />
+		<Compile Include="Exports\PointsExport.vb" />
+		<Compile Include="Exports\ConnectorExport.vb" />
+		<Compile Include="Exports\DuplicateExport.vb" />
+		<Compile Include="Exports\FamilyLinkAuditExport.vb" />
+		<Compile Include="Infrastructure\ElementIdCompat.vb" />
+		<Compile Include="Infrastructure\ResourceExtractor.vb" />
+		<Compile Include="Infrastructure\ExcelCore.vb" />
+		<Compile Include="Services\DuplicateAnalysisService.vb" />
+		<Compile Include="Services\ConnectorDiagnosticsService.vb" />
+		<Compile Include="Services\ExportPointsService.vb" />
+		<Compile Include="Services\ParamPropagateService.vb" />
+		<Compile Include="Services\GuidAuditService.vb" />
+		<Compile Include="Services\SegmentPmsCheckService.vb" />
+		<Compile Include="Services\FamilyLinkAuditService.vb" />
+		<Compile Include="UI\Hub\ExcelProgressReporter.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Export.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Connector.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Duplicate.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Guid.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.SegmentPms.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.ParamProp.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.FamilyLinkAudit.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Multi.vb" />
+		<Compile Include="UI\Hub\UiBridgeExternalEvent.Core.vb" />
+		<Compile Include="UI\Hub\HubHostWindow.vb" />
+	</ItemGroup>
+
+	<!-- 리소스 -->
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\icons\hub_16.png" Condition="Exists('Resources\icons\hub_16.png')">
+			<LogicalName>KKY_Tool_Revit.Resources.Icons.KKY_Hub_16.png</LogicalName>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\hub_32.png" Condition="Exists('Resources\icons\hub_32.png')">
+			<LogicalName>KKY_Tool_Revit.Resources.Icons.KKY_Hub_32.png</LogicalName>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\KKY_Tool_16.png" Condition="Exists('Resources\icons\KKY_Tool_16.png')">
+			<LogicalName>KKY_Tool_Revit.Resources.Icons.KKY_Tool_16.png</LogicalName>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\KKY_Tool_32.png" Condition="Exists('Resources\icons\KKY_Tool_32.png')">
+			<LogicalName>KKY_Tool_Revit.Resources.Icons.KKY_Tool_32.png</LogicalName>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\hub_64.png" Condition="Exists('Resources\icons\hub_64.png')">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<Content Include="Resources\HubUI\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
+	  <EmbeddedResource Include="Resources\HubUI\assets\icons\HubHome_24.png" />
+	  <EmbeddedResource Include="Resources\HubUI\assets\icons\KKY_Tool_48.png" />
+	</ItemGroup>
+
+	<!-- ✅ 빌드마다 .addin 생성: Application 로드 (리본 탭 생성) -->
+	<Target Name="CreateAddin" AfterTargets="Build">
+		<PropertyGroup>
+			<AddinOutDir>$(AddinRoot)\$(RevitYear)</AddinOutDir>
+			<BuiltDll>$(OutputPath)$(AssemblyName).dll</BuiltDll>
+			<BuiltDllFull>$([System.IO.Path]::GetFullPath('$(BuiltDll)'))</BuiltDllFull>
+			<AddinFile>$(AddinOutDir)\KKY_Tool_Revit.addin</AddinFile>
+		</PropertyGroup>
+		<Message Text="AddinOutDir=$(AddinOutDir)" Importance="high" />
+		<Message Text="BuiltDllFull=$(BuiltDllFull)" Importance="high" />
+		<MakeDir Directories="$(AddinOutDir)" />
+		<!-- Application 엔트리 생성 -->
+		<ItemGroup>
+			<AddinXml Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<AddinXml Include="&lt;RevitAddIns&gt;" />
+			<AddinXml Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
+			<AddinXml Include="    &lt;Name&gt;KKY_Tool_Revit&lt;/Name&gt;" />
+			<AddinXml Include="    &lt;Assembly&gt;$(BuiltDllFull)&lt;/Assembly&gt;" />
+			<AddinXml Include="    &lt;AddInId&gt;8D83DB0A-B739-4ACD-A9DB-7B57A229D2A4&lt;/AddInId&gt;" />
+			<AddinXml Include="    &lt;FullClassName&gt;KKY_Tool_Revit.KKY_Tool_Revit.App&lt;/FullClassName&gt;" />
+			<AddinXml Include="    &lt;VendorId&gt;KKY&lt;/VendorId&gt;" />
+			<AddinXml Include="    &lt;VendorDescription&gt;KKY Tools Hub&lt;/VendorDescription&gt;" />
+			<AddinXml Include="  &lt;/AddIn&gt;" />
+			<AddinXml Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(AddinFile)" Lines="@(AddinXml)" Overwrite="true" />
+		<Message Text="Created: $(AddinFile)" Importance="high" />
+	</Target>
+
+	<!-- ✅ VS에서 '빌드' 한 번으로 2019+2021+2023 모두 생성 -->
+	<Target Name="BuildTwinYear" AfterTargets="Build" Condition="'$(SkipTwin)'!='true' and '$(BuildTwinRun)'!='true'">
+		<!-- 현재 연도에 따라 나머지 두 연도를 계산 -->
+		<PropertyGroup>
+			<!-- 2019일 때: 2021, 2023 추가 빌드 -->
+			<OtherYear1 Condition="'$(RevitYear)'=='2019'">2021</OtherYear1>
+			<OtherYear2 Condition="'$(RevitYear)'=='2019'">2023</OtherYear2>
+			<!-- 2021일 때: 2019, 2023 추가 빌드 -->
+			<OtherYear1 Condition="'$(RevitYear)'=='2021'">2019</OtherYear1>
+			<OtherYear2 Condition="'$(RevitYear)'=='2021'">2023</OtherYear2>
+			<!-- 2023일 때: 2019, 2021 추가 빌드 -->
+			<OtherYear1 Condition="'$(RevitYear)'=='2023'">2019</OtherYear1>
+			<OtherYear2 Condition="'$(RevitYear)'=='2023'">2021</OtherYear2>
+		</PropertyGroup>
+		<!-- RevitYear가 유효하지 않으면 스킵 -->
+		<Message Condition="'$(OtherYear1)'=='' and '$(OtherYear2)'==''" Text="BuildTwinYear skipped (unknown RevitYear=$(RevitYear))" Importance="low" />
+		<!-- 나머지 두 연도 빌드 -->
+		<MSBuild Condition="'$(OtherYear1)'!=''" Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="RevitYear=$(OtherYear1);Configuration=$(Configuration);Platform=$(Platform);BuildTwinRun=true;SkipTwin=true" />
+		<MSBuild Condition="'$(OtherYear2)'!=''" Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="RevitYear=$(OtherYear2);Configuration=$(Configuration);Platform=$(Platform);BuildTwinRun=true;SkipTwin=true" />
+	</Target>
+
+	<!-- 명령줄로 세 버전 연속 빌드 -->
+	<Target Name="BuildAllYears">
+		<MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="RevitYear=2019;Configuration=$(Configuration);Platform=$(Platform);SkipTwin=true" />
+		<MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="RevitYear=2021;Configuration=$(Configuration);Platform=$(Platform);SkipTwin=true" />
+		<MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="RevitYear=2023;Configuration=$(Configuration);Platform=$(Platform);SkipTwin=true" />
+	</Target>
+</Project>

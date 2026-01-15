@@ -1,0 +1,238 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop" ToolsVersion="Current">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<RootNamespace>KKY_Tool_Revit</RootNamespace>
+		<AssemblyName>KKY_Tool_Revit_2025</AssemblyName>
+		<!-- 상위 bin\Rvt2025 아래에 DLL 출력 -->
+		<OutputPath>bin\Rvt2025\</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<OptionStrict>Off</OptionStrict>
+		<OptionInfer>On</OptionInfer>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Deterministic>false</Deterministic>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<EnableDefaultItems>false</EnableDefaultItems>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<Platforms>AnyCPU;x64</Platforms>
+		<DefineConstants>REVIT2025=1</DefineConstants>
+		<SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+		<PlatformTarget>x64</PlatformTarget>
+		<Prefer32Bit>false</Prefer32Bit>
+		<NoWarn>$(NoWarn);CA1416</NoWarn>
+		<FileUpgradeFlags>40</FileUpgradeFlags>
+		<UpgradeBackupLocation>C:\Users\manager\Desktop\KKY_Tool_Revit\KKY_Tool_Revit_2019-2023\Backup2\</UpgradeBackupLocation>
+		<OldToolsVersion>Current</OldToolsVersion>
+	</PropertyGroup>
+
+	<!-- ProgramData / Addins 루트 계산 -->
+	<PropertyGroup>
+		<ProgramDataPath>$([System.Environment]::GetEnvironmentVariable('ProgramData'))</ProgramDataPath>
+		<ProgramDataPath Condition="'$(ProgramDataPath)'==''">C:\ProgramData</ProgramDataPath>
+		<AddinRoot>$(ProgramDataPath)\Autodesk\Revit\Addins</AddinRoot>
+		<AddinYear>2025</AddinYear>
+	</PropertyGroup>
+
+	<!-- ✅ Revit 2025 API 로컬 DLL 경로 (repo 내 Compile\2025addin) -->
+	<PropertyGroup>
+		<!-- 후보 경로들(프로젝트 위치가 달라도 repo 압축 풀린 구조에 대응) -->
+		<RevitApiDirCandidate0>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\Compile\2025addin'))</RevitApiDirCandidate0>
+		<RevitApiDirCandidate1>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\Compile\2025addin'))</RevitApiDirCandidate1>
+		<RevitApiDirCandidate2>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\Compile\2025addin'))</RevitApiDirCandidate2>
+
+		<!-- 실제 사용 경로 결정(설치폴더 폴백 없음) -->
+		<RevitApiDir Condition="Exists('$(RevitApiDirCandidate0)\RevitAPI.dll')">$(RevitApiDirCandidate0)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate1)\RevitAPI.dll')">$(RevitApiDirCandidate1)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate2)\RevitAPI.dll')">$(RevitApiDirCandidate2)</RevitApiDir>
+	</PropertyGroup>
+
+	<!-- RevitAPI 경로 체크 -->
+	<Target Name="CheckRevitApiDir" BeforeTargets="ResolveReferences">
+		<Message Text="RevitApiDir=$(RevitApiDir)" Importance="high" />
+		<Error Condition="'$(RevitApiDir)'==''"
+			   Text="Local Revit API folder not found. Put RevitAPI.dll &amp; RevitAPIUI.dll under (one of) Compile\2025addin relative to this project folder." />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPI.dll')"
+			   Text="RevitAPI.dll not found: $(RevitApiDir)\RevitAPI.dll (local Compile\2025addin)" />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPIUI.dll')"
+			   Text="RevitAPIUI.dll not found: $(RevitApiDir)\RevitAPIUI.dll (local Compile\2025addin)" />
+	</Target>
+
+	<!-- 기본 포함 제거 -->
+	<ItemGroup>
+		<Compile Remove="**\*.vb" />
+		<Page Remove="**\*.xaml" />
+	</ItemGroup>
+
+	<!-- NuGet 패키지 -->
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+		<PackageReference Include="NPOI" Version="2.6.1" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+	</ItemGroup>
+
+	<!-- Revit 2025 API 참조 -->
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- 코드: 2019-2023 프로젝트 VB 파일을 링크로 공유 + 2025 전용 Compat -->
+	<ItemGroup>
+		<!-- 2025 전용 Compat (이 프로젝트 안에 유지) -->
+		<Compile Include="Compat\JavaScriptSerializer.vb" />
+		<Compile Include="Compat\BuiltInParameterGroupCompat.vb" />
+
+		<!-- 공통 App / Commands (2019-2023에서 링크) -->
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\APP.vb">
+			<Link>APP.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Commands\CmdOpenHub.vb">
+			<Link>Commands\CmdOpenHub.vb</Link>
+		</Compile>
+
+		<!-- 공통 Exports -->
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Exports\ConnectorExport.vb">
+			<Link>Exports\ConnectorExport.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Exports\DuplicateExport.vb">
+			<Link>Exports\DuplicateExport.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Exports\PointsExport.vb">
+			<Link>Exports\PointsExport.vb</Link>
+		</Compile>
+
+		<!-- 공통 Infrastructure -->
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Infrastructure\ExcelCore.vb">
+			<Link>Infrastructure\ExcelCore.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Infrastructure\ResourceExtractor.vb">
+			<Link>Infrastructure\ResourceExtractor.vb</Link>
+		</Compile>
+
+		<!-- 공통 Services -->
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\DuplicateAnalysisService.vb">
+			<Link>Services\DuplicateAnalysisService.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\ConnectorDiagnosticsService.vb">
+			<Link>Services\ConnectorDiagnosticsService.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\ExportPointsService.vb">
+			<Link>Services\ExportPointsService.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\ParamPropagateService.vb">
+			<Link>Services\ParamPropagateService.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\SegmentPmsCheckService.vb">
+			<Link>Services\SegmentPmsCheckService.vb</Link>
+		</Compile>
+
+		<!-- 공통 Hub / Bridge -->
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.Export.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.Export.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\ExcelProgressReporter.vb">
+			<Link>UI\Hub\ExcelProgressReporter.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.Connector.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.Connector.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.Duplicate.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.Duplicate.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.SegmentPms.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.SegmentPms.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.ParamProp.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.ParamProp.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\UiBridgeExternalEvent.Core.vb">
+			<Link>UI\Hub\UiBridgeExternalEvent.Core.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\UI\Hub\HubHostWindow.vb">
+			<Link>UI\Hub\HubHostWindow.vb</Link>
+		</Compile>
+	</ItemGroup>
+
+	<!-- 리소스 / HubUI -->
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\icons\hub_16.png" Link="Resources\icons\hub_16.png" Condition="Exists('Resources\icons\hub_16.png')">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\hub_32.png" Link="Resources\icons\hub_32.png" Condition="Exists('Resources\icons\hub_32.png')">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+		<EmbeddedResource Include="Resources\icons\hub_64.png" Link="Resources\icons\hub_64.png" Condition="Exists('Resources\icons\hub_64.png')">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</EmbeddedResource>
+
+		<!-- ✅ HubUI: 2025 프로젝트에 있으면 그걸 사용 -->
+		<Content Include="Resources\HubUI\**\*" Condition="Exists('Resources\HubUI\index.html')"
+				 Link="Resources\HubUI\%(RecursiveDir)%(Filename)%(Extension)">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>Resources\HubUI\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+		</Content>
+
+		<!-- ✅ HubUI: 2025 프로젝트에 없으면 2019-2023 리소스를 사용(링크 복사) -->
+		<Content Include="..\KKY_Tool_Revit_2019-2023\Resources\HubUI\**\*"
+				 Condition="!Exists('Resources\HubUI\index.html')"
+				 Link="Resources\HubUI\%(RecursiveDir)%(Filename)%(Extension)">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>Resources\HubUI\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="My Project\Application.myapp" />
+	</ItemGroup>
+
+	<!-- 빌드 후 addin 자동 생성 + HubUI 리소스도 Addins 폴더로 복사 -->
+	<Target Name="CreateAddin" AfterTargets="Build">
+		<PropertyGroup>
+			<AddinOutDir>$(AddinRoot)\$(AddinYear)\KKY_Tool_Revit</AddinOutDir>
+			<BuiltDll>$([System.IO.Path]::GetFullPath('$(OutputPath)$(AssemblyName).dll'))</BuiltDll>
+			<AddinFile>$(AddinRoot)\$(AddinYear)\KKY_Tool_Revit.addin</AddinFile>
+		</PropertyGroup>
+
+		<Message Text="AddinOutDir=$(AddinOutDir)" Importance="high" />
+		<Message Text="BuiltDll=$(BuiltDll)" Importance="high" />
+		<MakeDir Directories="$(AddinOutDir)" />
+
+		<!-- ✅ OutputPath에 HubUI가 실제로 생겼는지 체크 -->
+		<Error Condition="!Exists('$(OutputPath)Resources\HubUI\index.html')"
+			   Text="HubUI not found in output: $(OutputPath)Resources\HubUI\index.html (check Resources\HubUI content include)" />
+
+		<!-- ✅ Addins\2025\KKY_Tool_Revit 아래에도 Resources\HubUI를 같이 배포 -->
+		<ItemGroup>
+			<HubUiOutFiles Include="$(OutputPath)Resources\HubUI\**\*" />
+		</ItemGroup>
+		<MakeDir Directories="@(HubUiOutFiles->'$(AddinOutDir)\Resources\HubUI\%(RecursiveDir)')" />
+		<Copy SourceFiles="@(HubUiOutFiles)"
+			  DestinationFiles="@(HubUiOutFiles->'$(AddinOutDir)\Resources\HubUI\%(RecursiveDir)%(Filename)%(Extension)')"
+			  SkipUnchangedFiles="true" />
+
+		<ItemGroup>
+			<AddinXml Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<AddinXml Include="&lt;RevitAddIns&gt;" />
+			<AddinXml Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
+			<AddinXml Include="    &lt;Name&gt;KKY_Tool_Revit&lt;/Name&gt;" />
+			<AddinXml Include="    &lt;Assembly&gt;$(BuiltDll)&lt;/Assembly&gt;" />
+			<AddinXml Include="    &lt;AddInId&gt;8D83DB0A-B739-4ACD-A9DB-7B57A229D2A4&lt;/AddInId&gt;" />
+			<AddinXml Include="    &lt;FullClassName&gt;KKY_Tool_Revit.KKY_Tool_Revit.App&lt;/FullClassName&gt;" />
+			<AddinXml Include="    &lt;VendorId&gt;KKY&lt;/VendorId&gt;" />
+			<AddinXml Include="    &lt;VendorDescription&gt;KKY Tools Hub&lt;/VendorDescription&gt;" />
+			<AddinXml Include="  &lt;/AddIn&gt;" />
+			<AddinXml Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(AddinFile)" Lines="@(AddinXml)" Overwrite="true" />
+		<Message Text="Created: $(AddinFile)" Importance="high" />
+	</Target>
+</Project>

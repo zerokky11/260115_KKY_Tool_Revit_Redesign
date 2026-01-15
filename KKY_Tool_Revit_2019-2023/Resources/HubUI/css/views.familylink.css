@@ -1,0 +1,126 @@
+.familylink-page {
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.familylink-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.familylink-top-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 340px;
+}
+
+.familylink-card {
+  min-height: 0;
+}
+
+.familylink-source {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  word-break: break-all;
+}
+
+.familylink-rvt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.familylink-rvt-table {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.familylink-results-panel {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 240px;
+  overflow: hidden;
+}
+
+.familylink-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.familylink-results-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.familylink-results-meta {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.familylink-results-body {
+  overflow: auto;
+  flex: 1;
+  min-height: 220px;
+}
+
+.familylink-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.familylink-table th,
+.familylink-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+}
+
+.familylink-table thead th {
+  background: var(--tableHeaderBg);
+  color: var(--tableHeaderText);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.familylink-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 14px 8px;
+}
+
+.familylink-selected-count {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  margin-left: 6px;
+}
+
+@media (max-width: 1100px) {
+  .familylink-top-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
