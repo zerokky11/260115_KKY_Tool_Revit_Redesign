@@ -3,7 +3,12 @@ import { ProgressDialog } from '../core/progress.js';
 import { post, onHost } from '../core/bridge.js';
 import { createRvtTable, renderRvtRows, getRvtName } from './rvtTable.js';
 
-const FEATURE_KEYS = ['connector', 'guid', 'points'];
+const FEATURE_META = {
+  connector: { label: '커넥터 진단', requiresSharedParams: false },
+  guid: { label: 'GUID 검토', requiresSharedParams: true },
+  points: { label: 'Point 추출', requiresSharedParams: false }
+};
+const FEATURE_KEYS = Object.keys(FEATURE_META);
 const COMMON_OPTIONS_KEY = 'kky.hub.commonOptions';
 
 export function renderMulti(root) {
@@ -27,6 +32,7 @@ export function renderMulti(root) {
       points: createFeatureState({ unit: 'ft' })
     },
     results: {},
+    sharedParamStatus: null,
     ui: {
       modalOpen: false,
       activeFeatureKey: '',
@@ -35,7 +41,12 @@ export function renderMulti(root) {
       controls: {},
       lastProgressPct: 0,
       runCompleted: false,
-      commonSummaryEl: null
+      commonSummaryEl: null,
+      sharedParamBanner: null,
+      runSummaryChips: null,
+      runSummaryTitle: null,
+      runSummaryDetail: null,
+      runSharedParamHint: null
     }
   };
 
@@ -69,8 +80,8 @@ export function renderMulti(root) {
   group2.section.append(buildToggleRow('guid', 'GUID 검토', '공유 파라미터 GUID 불일치 검토', buildGuidConfig()));
   group3.section.append(buildToggleRow('points', 'Point 추출', 'Project/Survey Point 좌표 추출', buildPointsConfig()));
 
-  leftCol.append(group1.wrap, group2.wrap, group3.wrap);
-  rightCol.append(buildRunBar(), buildRvtSection());
+  leftCol.append(buildRunBar(), buildRvtSection());
+  rightCol.append(group1.wrap, group2.wrap, group3.wrap);
   layout.append(leftCol, rightCol);
   page.append(layout);
   page.append(buildSettingsModal());
@@ -141,6 +152,12 @@ export function renderMulti(root) {
     } else {
       toast(payload?.message || '엑셀 저장에 실패했습니다.', 'err');
     }
+  });
+
+  onHost('sharedparam:status', (payload) => {
+    state.sharedParamStatus = payload || {};
+    updateSharedParamBanner();
+    updateRunSummary();
   });
 
   function buildGroupSection(title, desc) {
@@ -404,13 +421,14 @@ export function renderMulti(root) {
       state.rvtChecked.clear();
       markAllStale();
       renderRvtList();
-    }, 'btn--secondary');
+    }, 'btn--danger');
     controls.append(btnAdd, btnRemove, btnClear);
 
     head.append(title, controls);
     section.append(head);
 
     const body = div('rvt-panel-body');
+    const tableWrap = div('rvt-table-wrap');
     const { table, tbody, master } = createRvtTable();
     const summary = div('multi-rvt-summary');
     const empty = div('rvt-empty');
@@ -421,7 +439,8 @@ export function renderMulti(root) {
     const emptyBtn = cardBtn('RVT 추가', () => post('hub:pick-rvt', {}), 'btn--primary');
     empty.append(emptyTitle, emptySub, emptyBtn);
 
-    body.append(table, empty, summary);
+    tableWrap.append(table);
+    body.append(tableWrap, empty, summary);
     section.append(body);
 
     function syncMaster() {
@@ -450,11 +469,15 @@ export function renderMulti(root) {
           syncMaster();
         }
       }));
-      renderRvtRows(tbody, rows, '등록된 RVT가 없습니다.');
       const count = state.rvtList.length;
+      tbody.innerHTML = '';
+      if (count > 0) {
+        renderRvtRows(tbody, rows);
+      }
       summary.textContent = `총 파일 수: ${count}`;
       badge.textContent = `${count}개`;
       empty.style.display = count ? 'none' : 'flex';
+      tableWrap.style.display = count ? 'block' : 'none';
       syncMaster();
       btnRemove.disabled = state.rvtChecked.size === 0;
       btnClear.disabled = state.rvtList.length === 0;
@@ -469,6 +492,14 @@ export function renderMulti(root) {
   function buildRunBar() {
     const bar = div('run-bar');
     const summary = div('run-summary');
+    const summaryTitle = document.createElement('strong');
+    summaryTitle.className = 'run-summary__title';
+    const summaryDetail = document.createElement('span');
+    summaryDetail.className = 'run-summary__detail';
+    const summaryChips = div('run-summary__chips');
+    const sharedHint = div('run-summary__hint');
+    sharedHint.style.display = 'none';
+    summary.append(summaryTitle, summaryDetail, summaryChips, sharedHint);
     const status = div('run-status');
     const progressText = document.createElement('span');
     const progressDetail = document.createElement('small');
@@ -485,6 +516,10 @@ export function renderMulti(root) {
 
     buildRunBar.startBtn = startBtn;
     buildRunBar.summary = summary;
+    buildRunBar.summaryTitle = summaryTitle;
+    buildRunBar.summaryDetail = summaryDetail;
+    buildRunBar.summaryChips = summaryChips;
+    buildRunBar.runSharedParamHint = sharedHint;
     buildRunBar.progressText = progressText;
     buildRunBar.progressDetail = progressDetail;
     buildRunBar.progressFill = progressFill;
@@ -508,6 +543,9 @@ export function renderMulti(root) {
     const body = div('modal__body');
     const form = div('modal__form');
     const help = div('modal__help');
+    const sharedBanner = buildSharedParamStatusBanner();
+    sharedBanner.style.display = 'none';
+    form.append(sharedBanner);
     body.append(form, help);
 
     const footer = div('modal__footer');
@@ -533,6 +571,7 @@ export function renderMulti(root) {
     buildSettingsModal.badge = badge;
     buildSettingsModal.form = form;
     buildSettingsModal.help = help;
+    buildSettingsModal.sharedBanner = sharedBanner;
     return overlay;
   }
 
@@ -580,6 +619,39 @@ export function renderMulti(root) {
     btn.textContent = label;
     if (onClick) btn.addEventListener('click', onClick);
     return btn;
+  }
+
+  function buildSharedParamStatusBanner() {
+    const banner = div('sharedparam-banner');
+    const head = div('sharedparam-banner__head');
+    const title = document.createElement('strong');
+    title.textContent = 'Shared Parameter 상태';
+    const badge = document.createElement('span');
+    badge.className = 'sharedparam-banner__badge';
+    const refresh = document.createElement('button');
+    refresh.type = 'button';
+    refresh.className = 'btn btn--ghost sharedparam-banner__refresh';
+    refresh.textContent = '상태 새로고침';
+    refresh.addEventListener('click', () => requestSharedParamStatus('manual'));
+    head.append(title, badge, refresh);
+
+    const path = div('sharedparam-banner__path');
+    const pathLabel = document.createElement('span');
+    pathLabel.textContent = '경로';
+    const pathValue = document.createElement('span');
+    pathValue.className = 'sharedparam-banner__value';
+    path.append(pathLabel, pathValue);
+
+    const note = div('sharedparam-banner__note');
+
+    banner.append(head, path, note);
+    state.ui.sharedParamBanner = {
+      root: banner,
+      badge,
+      pathValue,
+      note
+    };
+    return banner;
   }
 
   function markStale(key) {
@@ -646,6 +718,9 @@ export function renderMulti(root) {
       toast('선택된 기능이 없습니다.', 'warn');
       return;
     }
+    if (!canRunWithSharedParams()) {
+      return;
+    }
     if (!state.rvtList.length) {
       toast('RVT 파일을 추가하세요.', 'warn');
       return;
@@ -690,6 +765,7 @@ export function renderMulti(root) {
       }
     });
     if (!on) renderRvtList();
+    if (!on) updateSharedParamRunState();
   }
 
   function renderRvtList() {
@@ -713,6 +789,7 @@ export function renderMulti(root) {
     buildSettingsModal.help.innerHTML = '';
     resetDraftFromCommitted(key);
     syncControlsFromDraft(key);
+    renderSharedParamBanner(key);
     const panel = getFeaturePanel(key);
     if (panel) buildSettingsModal.form.append(panel);
     renderHelp(key, title);
@@ -757,7 +834,32 @@ export function renderMulti(root) {
     if (!buildRunBar.summary) return;
     const enabledCount = FEATURE_KEYS.filter((k) => state.features[k].enabled).length;
     const rvtCount = state.rvtList.length;
-    buildRunBar.summary.innerHTML = `<strong>선택 기능: ${enabledCount}개</strong><span>RVT: ${rvtCount}개</span>`;
+    const selectedLabels = getSelectedFeatureLabels();
+    const maxVisible = 4;
+    const visible = selectedLabels.slice(0, maxVisible);
+    const remainder = selectedLabels.length - visible.length;
+    if (buildRunBar.summaryTitle) {
+      buildRunBar.summaryTitle.textContent = `선택 기능: ${enabledCount}개`;
+    }
+    if (buildRunBar.summaryDetail) {
+      buildRunBar.summaryDetail.textContent = `RVT: ${rvtCount}개`;
+    }
+    if (buildRunBar.summaryChips) {
+      buildRunBar.summaryChips.innerHTML = '';
+      visible.forEach((label) => {
+        const chip = document.createElement('span');
+        chip.className = 'run-chip';
+        chip.textContent = label;
+        buildRunBar.summaryChips.append(chip);
+      });
+      if (remainder > 0) {
+        const chip = document.createElement('span');
+        chip.className = 'run-chip run-chip--muted';
+        chip.textContent = `+${remainder}`;
+        buildRunBar.summaryChips.append(chip);
+      }
+    }
+    updateSharedParamRunState();
   }
 
   function updateRunProgress(percent, message, detail) {
@@ -924,6 +1026,91 @@ export function renderMulti(root) {
 
   function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function getSelectedFeatureLabels() {
+    return FEATURE_KEYS.filter((key) => state.features[key].enabled).map((key) => FEATURE_META[key].label);
+  }
+
+  function requiresSharedParams(key) {
+    return !!FEATURE_META[key]?.requiresSharedParams;
+  }
+
+  function requestSharedParamStatus(context) {
+    post('sharedparam:status', { source: 'multi', context });
+  }
+
+  function updateSharedParamBanner() {
+    const banner = buildSettingsModal.sharedBanner || state.ui.sharedParamBanner?.root;
+    if (!banner || banner.style.display === 'none') return;
+    const status = state.sharedParamStatus || {};
+    const label = status.statusLabel || '조회 중';
+    const badge = state.ui.sharedParamBanner?.badge;
+    const pathValue = state.ui.sharedParamBanner?.pathValue;
+    const note = state.ui.sharedParamBanner?.note;
+    if (badge) {
+      badge.textContent = label;
+      badge.classList.remove('is-ok', 'is-warn', 'is-error');
+      if (status.status === 'ok') badge.classList.add('is-ok');
+      else if (status.status === 'unset' || status.status === 'missing') badge.classList.add('is-warn');
+      else badge.classList.add('is-error');
+    }
+    if (pathValue) {
+      const pathText = status.path || '미설정';
+      pathValue.textContent = pathText;
+      pathValue.title = pathText;
+    }
+    if (note) {
+      const warning = status.warning || status.errorMessage || '';
+      note.textContent = warning ? warning : '';
+      note.style.display = warning ? 'block' : 'none';
+    }
+  }
+
+  function renderSharedParamBanner(key) {
+    const banner = buildSettingsModal.sharedBanner;
+    if (!banner) return;
+    if (!requiresSharedParams(key)) {
+      banner.style.display = 'none';
+      return;
+    }
+    banner.style.display = 'block';
+    buildSettingsModal.form.append(banner);
+    requestSharedParamStatus('settings');
+    updateSharedParamBanner();
+  }
+
+  function updateSharedParamRunState() {
+    const needsShared = FEATURE_KEYS.some((key) => state.features[key].enabled && requiresSharedParams(key));
+    const ok = state.sharedParamStatus?.status === 'ok';
+    if (buildRunBar.runSharedParamHint) {
+      if (needsShared && !ok) {
+        const warning = state.sharedParamStatus?.warning || 'Shared Parameter 미등록으로 실행이 제한됩니다.';
+        buildRunBar.runSharedParamHint.textContent = warning;
+        buildRunBar.runSharedParamHint.style.display = 'block';
+      } else {
+        buildRunBar.runSharedParamHint.style.display = 'none';
+      }
+    }
+    if (buildRunBar.startBtn && !state.busy) {
+      buildRunBar.startBtn.disabled = needsShared && !ok;
+    }
+  }
+
+  function canRunWithSharedParams() {
+    const needsShared = FEATURE_KEYS.some((key) => state.features[key].enabled && requiresSharedParams(key));
+    if (!needsShared) return true;
+    const status = state.sharedParamStatus || {};
+    if (status.status === 'ok') return true;
+    if (!status.status) {
+      requestSharedParamStatus('run');
+      toast('Shared Parameter 상태를 확인 중입니다.', 'warn');
+      return false;
+    }
+    requestSharedParamStatus('run');
+    const msg = status.warning || status.errorMessage || 'Shared Parameter 상태를 확인하세요.';
+    toast(msg, 'warn');
+    return false;
   }
 
   function normalizeCommonOptions(raw) {

@@ -76,8 +76,10 @@ Namespace UI.Hub
         Public Sub New(uiApp As UIApplication)
             _uiApp = uiApp
             Title = BaseTitle
-            Width = 1280
-            Height = 800
+            Width = 1360
+            Height = 860
+            MinWidth = 1100
+            MinHeight = 720
             WindowStartupLocation = WindowStartupLocation.CenterScreen
             Content = _web
 

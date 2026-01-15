@@ -3,6 +3,9 @@
     flex-direction: column;
     gap: 18px;
     color: var(--text-main);
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .multi-header {
@@ -18,9 +21,11 @@
 
 .multi-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
     gap: 18px;
     align-items: start;
+    min-height: 0;
+    flex: 1;
 }
 
 .multi-left,
@@ -28,6 +33,12 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 0;
+}
+
+.multi-right {
+    overflow: auto;
+    padding-right: 4px;
 }
 
 .multi-section {
@@ -336,7 +347,7 @@
 
 .multi-rvt-controls {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
 }
 
@@ -363,11 +374,21 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    align-items: flex-start;
-    padding: 12px;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    text-align: center;
     border-radius: 12px;
     border: 1px dashed var(--border-soft);
     background: var(--surface-subtle);
+}
+
+.rvt-table-wrap {
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-subtle);
+    overflow: auto;
+    max-height: 320px;
 }
 
 .multi-rvt-summary {
@@ -389,7 +410,7 @@
 
 .run-bar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
     padding: 14px 16px;
@@ -405,9 +426,36 @@
     font-size: 0.9rem;
 }
 
-.run-summary span {
+.run-summary__detail {
     color: var(--text-soft);
     font-size: 0.85rem;
+}
+
+.run-summary__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.run-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    border: 1px solid var(--chipBorder);
+    background: var(--chipBg);
+    color: var(--text-main);
+}
+
+.run-chip--muted {
+    color: var(--text-soft);
+}
+
+.run-summary__hint {
+    font-size: 0.78rem;
+    color: var(--warning);
 }
 
 .run-status {
@@ -512,6 +560,82 @@
     gap: 8px;
 }
 
+.sharedparam-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-subtle);
+}
+
+.sharedparam-banner__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sharedparam-banner__head strong {
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.sharedparam-banner__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    border: 1px solid var(--chipBorder);
+    background: var(--chipBg);
+    color: var(--text-main);
+}
+
+.sharedparam-banner__badge.is-ok {
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 50%, transparent);
+    background: color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.sharedparam-banner__badge.is-warn {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+    background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+
+.sharedparam-banner__badge.is-error {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.sharedparam-banner__refresh {
+    margin-left: auto;
+}
+
+.sharedparam-banner__path {
+    display: flex;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.sharedparam-banner__value {
+    color: var(--text-main);
+    flex: 1 1 auto;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sharedparam-banner__note {
+    font-size: 0.78rem;
+    color: var(--warning);
+    line-height: 1.4;
+}
+
 .filter-examples {
     margin-top: 8px;
     padding: 12px;
@@ -581,6 +705,15 @@
 @media (max-width: 960px) {
     .multi-layout {
         grid-template-columns: 1fr;
+    }
+
+    .multi-page {
+        overflow: auto;
+    }
+
+    .multi-right {
+        overflow: visible;
+        padding-right: 0;
     }
 
     .run-bar {
