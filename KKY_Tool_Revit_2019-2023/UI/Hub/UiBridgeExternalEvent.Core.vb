@@ -137,6 +137,7 @@ Namespace UI.Hub
             map.Add("paramprop:run", "HandleSharedParamRun")
             map.Add("sharedparam:run", "HandleSharedParamRun")
             map.Add("sharedparam:list", "HandleSharedParamList")
+            map.Add("sharedparam:status", "HandleSharedParamStatus")
             map.Add("sharedparam:export-excel", "HandleSharedParamExport")
             ' 공통 Excel 동작
             map.Add("excel:open", "HandleExcelOpen")

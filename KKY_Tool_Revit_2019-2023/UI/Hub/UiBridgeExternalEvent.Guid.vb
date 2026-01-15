@@ -71,6 +71,24 @@ Namespace UI.Hub
             Dim includeAnnotation As Boolean = SafeBoolObj(GetProp(pd, "includeAnnotation"), False)
 
             Try
+                Dim sharedStatus = SharedParameterStatusService.GetStatus(app)
+                If sharedStatus Is Nothing OrElse Not String.Equals(sharedStatus.Status, "ok", StringComparison.OrdinalIgnoreCase) Then
+                    Dim msg = If(String.IsNullOrWhiteSpace(sharedStatus?.WarningMessage), "Shared Parameter 파일 상태가 올바르지 않습니다.", sharedStatus.WarningMessage)
+                    SendToWeb("sharedparam:status", New With {
+                        .path = sharedStatus?.Path,
+                        .isSet = sharedStatus?.IsSet,
+                        .existsOnDisk = sharedStatus?.ExistsOnDisk,
+                        .canOpen = sharedStatus?.CanOpen,
+                        .status = sharedStatus?.Status,
+                        .statusLabel = sharedStatus?.StatusLabel,
+                        .warning = sharedStatus?.WarningMessage,
+                        .errorMessage = sharedStatus?.ErrorMessage
+                    })
+                    SendToWeb("guid:error", New With {.message = msg})
+                    SendToWeb("revit:error", New With {.message = "GUID 검토 실패: " & msg})
+                    Return
+                End If
+
                 _guidProject = Nothing
                 _guidFamilyDetail = Nothing
                 _guidFamilyIndex = Nothing

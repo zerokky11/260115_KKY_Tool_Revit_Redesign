@@ -37,9 +37,53 @@ Namespace UI.Hub
             End Try
         End Sub
 
+        ' === sharedparam:status ===
+        Private Sub HandleSharedParamStatus(app As UIApplication, payload As Object)
+            Try
+                Dim status = SharedParameterStatusService.GetStatus(app)
+                Dim shaped As Object = New With {
+                    .path = status.Path,
+                    .isSet = status.IsSet,
+                    .existsOnDisk = status.ExistsOnDisk,
+                    .canOpen = status.CanOpen,
+                    .status = status.Status,
+                    .statusLabel = status.StatusLabel,
+                    .warning = status.WarningMessage,
+                    .errorMessage = status.ErrorMessage
+                }
+                SendToWeb("sharedparam:status", shaped)
+            Catch ex As Exception
+                SendToWeb("sharedparam:status", New With {
+                    .status = "error",
+                    .statusLabel = "조회 실패",
+                    .warning = "Shared Parameter 상태 조회에 실패했습니다.",
+                    .errorMessage = ex.Message
+                })
+            End Try
+        End Sub
+
         ' === sharedparam:run / paramprop:run ===
         Private Sub HandleSharedParamRun(app As UIApplication, payload As Object)
             Try
+                Dim sharedStatus = SharedParameterStatusService.GetStatus(app)
+                If sharedStatus Is Nothing OrElse Not String.Equals(sharedStatus.Status, "ok", StringComparison.OrdinalIgnoreCase) Then
+                    Dim msg = If(String.IsNullOrWhiteSpace(sharedStatus?.WarningMessage), "Shared Parameter 파일 상태가 올바르지 않습니다.", sharedStatus.WarningMessage)
+                    SendToWeb("sharedparam:done", New With {.ok = False, .status = "blocked", .message = msg})
+                    SendToWeb("paramprop:done", New With {.ok = False, .status = "blocked", .message = msg})
+                    SendToWeb("revit:error", New With {.message = "공유 파라미터 연동 실패: " & msg})
+                    SendToWeb("sharedparam:status", New With {
+                        .path = sharedStatus?.Path,
+                        .isSet = sharedStatus?.IsSet,
+                        .existsOnDisk = sharedStatus?.ExistsOnDisk,
+                        .canOpen = sharedStatus?.CanOpen,
+                        .status = sharedStatus?.Status,
+                        .statusLabel = sharedStatus?.StatusLabel,
+                        .warning = sharedStatus?.WarningMessage,
+                        .errorMessage = sharedStatus?.ErrorMessage
+                    })
+                    Return
+                End If
+
                 Dim req As ParamPropagateService.SharedParamRunRequest = ParamPropagateService.SharedParamRunRequest.FromPayload(payload)
                 Dim res = ParamPropagateService.Run(app, req, AddressOf ReportParamPropProgress)
                 _lastParamResult = res

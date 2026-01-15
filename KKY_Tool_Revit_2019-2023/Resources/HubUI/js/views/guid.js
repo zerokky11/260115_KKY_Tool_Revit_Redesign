@@ -29,7 +29,8 @@ export function renderGuid(root) {
         hasRun: false,
         includeFamily: false,
         includeAnnotation: false,
-        familyFilter: 'all'
+        familyFilter: 'all',
+        sharedParamStatus: null
     };
     let lastExcelPct = 0;
 
@@ -48,7 +49,8 @@ export function renderGuid(root) {
     const modeToggle = buildModeToggle();
     const annotationToggle = buildAnnotationToggle();
     optionRow.append(modeToggle, annotationToggle);
-    headerRight.append(optionRow);
+    const sharedStatus = buildSharedParamStatus();
+    headerRight.append(optionRow, sharedStatus);
     header.append(headerLeft, headerRight);
     page.append(header);
 
@@ -177,6 +179,7 @@ export function renderGuid(root) {
     syncModeToggle();
     syncAnnotationToggle();
     syncResultState();
+    requestSharedParamStatus();
 
     // Host events
     onHost('guid:files', ({ paths }) => {
@@ -279,6 +282,10 @@ export function renderGuid(root) {
     onHost('guid:error', handleError);
     onHost('revit:error', handleError);
     onHost('host:error', handleError);
+    onHost('sharedparam:status', (payload) => {
+        state.sharedParamStatus = payload || {};
+        updateSharedParamStatus(sharedStatus, state.sharedParamStatus);
+    });
 
     // UI handlers
     btnTabProject.onclick = () => { state.activeTab = 'project'; syncTabState(); };
@@ -290,6 +297,7 @@ export function renderGuid(root) {
 
     function onRun() {
         if (state.busy) return;
+        if (!canRunWithSharedParam()) return;
         state.rvtList = dedupPaths(state.rvtList);
         const targets = dedupPaths(state.rvtList.filter(p => state.rvtChecked.has(p)));
         if (state.rvtList.length > 0 && targets.length === 0) {
@@ -317,6 +325,18 @@ export function renderGuid(root) {
         state.activeTab = 'project';
         ProgressDialog.show('GUID Audit', '준비 중…');
         post('guid:run', payload);
+    }
+
+    function requestSharedParamStatus() {
+        post('sharedparam:status', { source: 'guid' });
+    }
+
+    function canRunWithSharedParam() {
+        const status = state.sharedParamStatus || {};
+        if (!status.status || status.status === 'ok') return true;
+        const msg = status.warning || 'Shared Parameter 파일 상태가 올바르지 않습니다.';
+        toast(msg, 'err');
+        return false;
     }
 
     function onExport() {
@@ -376,6 +396,62 @@ export function renderGuid(root) {
             if (!state.includeFamily) ck.checked = false;
         };
         return wrap;
+    }
+
+    function buildSharedParamStatus() {
+        const wrap = div('sharedparam-status');
+        wrap.innerHTML = `
+          <div class="sharedparam-status__head">
+            <span class="sharedparam-status__title">Shared Parameter 상태</span>
+            <span class="sharedparam-status__badge chip">조회 중</span>
+          </div>
+          <div class="sharedparam-status__body">
+            <div class="sharedparam-status__row">
+              <span class="sharedparam-status__label">경로</span>
+              <span class="sharedparam-status__value" data-sp-path>조회 중</span>
+            </div>
+            <div class="sharedparam-status__row">
+              <span class="sharedparam-status__label">파일 존재</span>
+              <span class="sharedparam-status__value" data-sp-exists>—</span>
+            </div>
+            <div class="sharedparam-status__row">
+              <span class="sharedparam-status__label">파일 열기</span>
+              <span class="sharedparam-status__value" data-sp-open>—</span>
+            </div>
+          </div>
+          <div class="sharedparam-status__hint" data-sp-hint></div>`;
+        return wrap;
+    }
+
+    function updateSharedParamStatus(container, payload) {
+        if (!container) return;
+        const badge = container.querySelector('.sharedparam-status__badge');
+        const pathEl = container.querySelector('[data-sp-path]');
+        const existsEl = container.querySelector('[data-sp-exists]');
+        const openEl = container.querySelector('[data-sp-open]');
+        const hintEl = container.querySelector('[data-sp-hint]');
+
+        const status = payload?.status || 'unknown';
+        const label = payload?.statusLabel || '알 수 없음';
+        const path = payload?.path || '미설정';
+        const exists = payload?.existsOnDisk ? '존재' : '없음';
+        const canOpen = payload?.canOpen ? 'OK' : '실패';
+        const warning = payload?.warning || payload?.errorMessage || '';
+
+        if (pathEl) pathEl.textContent = path;
+        if (existsEl) existsEl.textContent = payload?.isSet ? exists : '미설정';
+        if (openEl) openEl.textContent = payload?.isSet ? canOpen : '미설정';
+        if (badge) {
+            badge.textContent = label;
+            badge.classList.remove('sharedparam-badge--ok', 'sharedparam-badge--warn', 'sharedparam-badge--error');
+            if (status === 'ok') badge.classList.add('sharedparam-badge--ok');
+            else if (status === 'unset' || status === 'missing') badge.classList.add('sharedparam-badge--warn');
+            else badge.classList.add('sharedparam-badge--error');
+        }
+        if (hintEl) {
+            hintEl.textContent = warning ? `이 상태에서는 검토가 실패할 수 있습니다. ${warning}` : '';
+            hintEl.style.display = warning ? 'block' : 'none';
+        }
     }
 
     function buildFamilyFilter() {
