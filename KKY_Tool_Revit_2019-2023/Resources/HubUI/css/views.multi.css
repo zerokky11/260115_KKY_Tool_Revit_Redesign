@@ -8,6 +8,11 @@
     overflow: hidden;
 }
 
+.multi-page .feature-shell {
+    height: 100%;
+    overflow: hidden;
+}
+
 .multi-header {
     display: flex;
     align-items: flex-start;
@@ -35,26 +40,22 @@
     flex-direction: column;
     gap: 16px;
     min-height: 0;
-    overflow-y: auto;
 }
 
 .multi-right {
+    overflow-y: auto;
     padding-right: 4px;
 }
 
 .multi-left {
     height: 100%;
+    overflow: hidden;
 }
 
 .left-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--bg);
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding-bottom: 8px;
 }
 
 .multi-section {
@@ -159,6 +160,14 @@
     border: 1px solid var(--border-soft);
     background: var(--panel2);
     min-height: 64px;
+}
+
+.feature-row.is-clickable {
+    cursor: pointer;
+}
+
+.feature-row.is-clickable:hover {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .feature-row.is-active {
@@ -459,6 +468,14 @@
     overflow: auto;
     flex: 1;
     min-height: 0;
+    overscroll-behavior: contain;
+}
+
+.rvt-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--tableHeaderBg);
 }
 
 .multi-rvt-summary {
@@ -877,8 +894,6 @@
     }
 
     .left-sticky {
-        position: static;
-        background: transparent;
         padding-bottom: 0;
     }
 

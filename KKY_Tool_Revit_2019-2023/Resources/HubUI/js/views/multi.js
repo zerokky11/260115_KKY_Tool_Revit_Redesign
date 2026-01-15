@@ -330,6 +330,10 @@ export function renderMulti(root) {
     summary.textContent = '추출 → PMS 등록 → 매핑 준비 → 비교 실행 → 결과 내보내기';
     header.append(left, right);
     row.append(header, summary);
+    row.addEventListener('click', () => {
+      location.hash = '#segmentpms';
+    });
+    row.classList.add('is-clickable');
     return row;
   }
 

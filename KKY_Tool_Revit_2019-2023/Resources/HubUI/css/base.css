@@ -19,6 +19,7 @@ body {
     color: var(--text-main);
     background: var(--bg-body);
     transition: background 220ms ease, color 220ms ease;
+    overflow: hidden;
 }
 
 :root {
@@ -157,8 +158,10 @@ body {
 }
 
 #app {
+    height: 100%;
     min-height: 100vh;
     padding: 16px;
+    overflow: hidden;
 }
 
 @media (min-width: 1280px) {
