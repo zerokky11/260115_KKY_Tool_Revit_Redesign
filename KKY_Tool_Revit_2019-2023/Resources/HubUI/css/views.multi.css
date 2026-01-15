@@ -21,7 +21,7 @@
 
 .multi-layout {
     display: grid;
-    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    grid-template-columns: minmax(420px, 0.9fr) minmax(0, 1fr);
     gap: 18px;
     align-items: start;
     min-height: 0;
@@ -41,6 +41,10 @@
     padding-right: 4px;
 }
 
+.multi-left {
+    height: 100%;
+}
+
 .multi-section {
     background: var(--surface-card);
     border: 1px solid var(--border-soft);
@@ -56,6 +60,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+}
+
+.multi-section-title h3 {
+    white-space: nowrap;
 }
 
 .multi-page .btn {
@@ -368,6 +376,18 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+}
+
+.rvt-panel {
+    flex: 1;
+    min-height: 0;
+}
+
+.rvt-panel-title h3 {
+    margin: 0;
+    white-space: nowrap;
 }
 
 .rvt-empty {
@@ -388,7 +408,8 @@
     border: 1px solid var(--border-soft);
     background: var(--surface-subtle);
     overflow: auto;
-    max-height: 320px;
+    flex: 1;
+    min-height: 0;
 }
 
 .multi-rvt-summary {
@@ -410,7 +431,7 @@
 
 .run-bar {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
     padding: 14px 16px;
@@ -431,31 +452,116 @@
     font-size: 0.85rem;
 }
 
-.run-summary__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.run-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    border: 1px solid var(--chipBorder);
-    background: var(--chipBg);
-    color: var(--text-main);
-}
-
-.run-chip--muted {
-    color: var(--text-soft);
-}
-
 .run-summary__hint {
     font-size: 0.78rem;
     color: var(--warning);
+}
+
+.selected-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.selected-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.selected-panel__header h3 {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.selected-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.selected-table th,
+.selected-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+    text-align: left;
+}
+
+.selected-table thead th {
+    background: var(--tableHeaderBg);
+    color: var(--tableHeaderText);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.selected-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.selected-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.selected-name strong {
+    font-size: 0.88rem;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.selected-name span {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selected-empty {
+    text-align: center;
+    color: var(--text-soft);
+    padding: 16px;
+}
+
+.status-chip {
+    font-weight: 600;
+}
+
+.status-chip--idle {
+    background: var(--chipBg);
+    color: var(--text-main);
+    border-color: var(--chipBorder);
+}
+
+.status-chip--ready {
+    background: color-mix(in srgb, var(--success) 18%, transparent);
+    color: color-mix(in srgb, var(--success) 70%, var(--text-main));
+    border-color: color-mix(in srgb, var(--success) 45%, transparent);
+}
+
+.status-chip--warn {
+    background: color-mix(in srgb, var(--warning) 18%, transparent);
+    color: color-mix(in srgb, var(--warning) 70%, var(--text-main));
+    border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.status-chip--running {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: color-mix(in srgb, var(--accent) 70%, var(--text-main));
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.status-chip--done {
+    background: color-mix(in srgb, var(--success) 18%, transparent);
+    color: color-mix(in srgb, var(--success) 70%, var(--text-main));
+    border-color: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
 .run-status {
