@@ -633,55 +633,30 @@ export function renderConn(root) {
   function createFilterGuideModal(){
     const overlay = document.createElement('div');
     overlay.className = 'conn-filter-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.background = 'rgba(0,0,0,0.45)';
-    overlay.style.display = 'none';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '1000';
 
     const dialog = document.createElement('div');
     dialog.className = 'conn-filter-modal';
-    dialog.style.background = '#fff';
-    dialog.style.borderRadius = '12px';
-    dialog.style.boxShadow = '0 18px 36px rgba(0,0,0,0.14)';
-    dialog.style.width = 'min(720px, 92vw)';
-    dialog.style.maxHeight = '82vh';
-    dialog.style.display = 'flex';
-    dialog.style.flexDirection = 'column';
 
     const headerEl = document.createElement('div');
-    headerEl.style.display = 'flex';
-    headerEl.style.alignItems = 'center';
-    headerEl.style.justifyContent = 'space-between';
-    headerEl.style.padding = '18px 20px 12px 20px';
+    headerEl.className = 'conn-filter-modal__header';
 
     const title = document.createElement('h3');
     title.textContent = '검토대상 필터 사용방법';
-    title.style.margin = '0';
-    title.style.fontSize = '18px';
-    title.style.fontWeight = '700';
+    title.className = 'conn-filter-modal__title';
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.textContent = '×';
     closeBtn.setAttribute('aria-label', '닫기');
-    closeBtn.style.fontSize = '20px';
-    closeBtn.style.background = 'transparent';
-    closeBtn.style.border = 'none';
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.padding = '4px 8px';
+    closeBtn.className = 'conn-filter-modal__close';
 
     headerEl.append(title, closeBtn);
 
     const body = document.createElement('div');
-    body.style.padding = '0 20px 20px 20px';
-    body.style.overflowY = 'auto';
-    body.style.flex = '1 1 auto';
+    body.className = 'conn-filter-modal__body';
     body.innerHTML = `
-      <p style="margin: 0 0 10px 0;">열 이름과 값을 이용해 조건을 작성하면, 해당 조건을 만족하는 행만 엑셀에 포함됩니다.</p>
-      <ul class="conn-excel-hint" style="margin:0 0 16px 0; padding-left:18px;">
+      <p class="conn-filter-modal__intro">열 이름과 값을 이용해 조건을 작성하면, 해당 조건을 만족하는 행만 엑셀에 포함됩니다.</p>
+      <ul class="conn-excel-hint conn-filter-modal__list">
         <li><strong>기본 비교식</strong>: <code>PM1=Value</code> (대소문자 무시)</li>
         <li><strong>값에 공백</strong>: <code>PM_NAME='A B'</code> 또는 <code>PM_NAME="A B"</code></li>
         <li><strong>AND</strong>: <code>AND(cond1, cond2, ...)</code></li>
@@ -689,18 +664,18 @@ export function renderConn(root) {
         <li><strong>NOT</strong>: <code>NOT(cond)</code></li>
         <li><strong>구분자</strong>: 조건을 <code>,</code> 또는 <code>;</code> 로 나열하면 자동 AND 처리</li>
       </ul>
-      <div class="conn-excel-hint" style="margin-bottom:12px;">
-        <div style="font-weight:600; margin-bottom:4px;">콤마 생략도 허용되는 예시</div>
-        <pre style="margin:0; white-space:pre-wrap;">OR(AND(PM1=1,PM2=2)AND(PM1=1,PM2=3))</pre>
+      <div class="conn-filter-modal__section">
+        <div class="conn-filter-modal__section-title">콤마 생략도 허용되는 예시</div>
+        <pre class="conn-filter-modal__code">OR(AND(PM1=1,PM2=2)AND(PM1=1,PM2=3))</pre>
       </div>
-      <div class="conn-excel-hint" style="margin-bottom:8px;">
-        <div style="font-weight:600; margin-bottom:4px;">대표 예시</div>
-        <pre style="margin:0; white-space:pre-wrap;">OR(AND(PM1=1,PM2=2), AND(PM1=1,PM2=3))
+      <div class="conn-filter-modal__section">
+        <div class="conn-filter-modal__section-title">대표 예시</div>
+        <pre class="conn-filter-modal__code">OR(AND(PM1=1,PM2=2), AND(PM1=1,PM2=3))
 → PM1=1 이고 PM2가 2 또는 3</pre>
       </div>
-      <div class="conn-excel-hint" style="margin-bottom:0;">
-        <div style="font-weight:600; margin-bottom:4px;">주의사항</div>
-        <ul style="margin:0; padding-left:18px;">
+      <div class="conn-filter-modal__section">
+        <div class="conn-filter-modal__section-title">주의사항</div>
+        <ul class="conn-filter-modal__list">
           <li><code>=</code> 비교만 지원(>, < 등 미지원)</li>
           <li>괄호/콤마 개수와 순서를 맞춰 주세요.</li>
           <li>파라미터명이 Revit 파라미터명과 정확히 일치해야 합니다.</li>
@@ -711,12 +686,12 @@ export function renderConn(root) {
     overlay.append(dialog);
 
     function open(){
-      overlay.style.display = 'flex';
+      overlay.classList.add('is-open');
       document.addEventListener('keydown', onKey);
     }
 
     function close(){
-      overlay.style.display = 'none';
+      overlay.classList.remove('is-open');
       document.removeEventListener('keydown', onKey);
     }
 

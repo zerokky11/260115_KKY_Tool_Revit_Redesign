@@ -30,12 +30,12 @@
     padding: 18px 22px;
     border-radius: 24px;
     border: 1px solid var(--border-soft);
-    background: linear-gradient(135deg, rgba(79, 209, 255, 0.16), rgba(2, 6, 23, 0.65));
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 16%, transparent),
+        color-mix(in srgb, var(--surface-card) 92%, transparent)
+    );
     box-shadow: var(--shadow-soft);
-}
-
-[data-theme="light"] .home-hero {
-    background: var(--surface-card);
 }
 
 @media (max-width: 960px) {
@@ -68,15 +68,11 @@
     border-radius: 16px;
     border: 1px solid var(--border-soft);
     padding: 12px;
-    background: rgba(0, 0, 0, 0.12);
+    background: color-mix(in srgb, var(--surface-subtle) 80%, transparent);
     display: flex;
     flex-direction: column;
     gap: 4px;
     text-align: center;
-}
-
-[data-theme="light"] .hero-meta .meta-card {
-    background: var(--surface-card);
 }
 
 .hero-meta .meta-card span {
@@ -140,7 +136,7 @@
     gap: 6px;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in srgb, var(--surface-subtle) 70%, transparent);
     color: var(--text-muted);
     padding: 6px 12px;
     font-size: 0.78rem;
@@ -150,7 +146,7 @@
 .filter-chip.is-active {
     border-color: var(--accent);
     color: var(--accent);
-    background: rgba(56, 189, 248, 0.16);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-subtle));
 }
 
 .card-grid {
@@ -203,17 +199,16 @@
     width: 52px;
     height: 52px;
     border-radius: 16px;
-    background: linear-gradient(145deg, rgba(79, 209, 255, 0.25), rgba(2, 6, 23, 0.8));
-    border: 1px solid rgba(79, 209, 255, 0.35);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--accent) 24%, transparent),
+        color-mix(in srgb, var(--surface-panel) 92%, transparent)
+    );
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-soft));
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: var(--accent);
-}
-
-[data-theme="light"] .card-icon {
-    background: var(--accent-soft);
-    border: 1px solid var(--border-soft);
 }
 
 .card-icon svg {
@@ -248,7 +243,7 @@
     font-size: 0.7rem;
     border-radius: var(--radius-pill);
     padding: 2px 8px;
-    border: 1px solid rgba(56, 189, 248, 0.4);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-soft));
     color: var(--accent);
 }
 
@@ -262,7 +257,7 @@
     height: 30px;
     border-radius: 50%;
     border: 1px solid var(--border-soft);
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in srgb, var(--surface-subtle) 75%, transparent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -306,10 +301,7 @@
     height: 26px;
     backdrop-filter: blur(4px);
     border: 1px solid var(--border-soft);
-    background: rgba(2, 6, 23, 0.45);
-}
-[data-theme="light"] .home-icon-fav {
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--surface-panel) 80%, transparent);
 }
 
 
@@ -320,7 +312,7 @@
 }
 
 .card mark {
-    background: rgba(56, 189, 248, 0.25);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
     color: inherit;
     padding: 0 2px;
     border-radius: 4px;
@@ -429,19 +421,17 @@
     width: 44px;
     height: 44px;
     border-radius: 14px;
-    border: 1px solid rgba(79, 209, 255, 0.28);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-soft));
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: var(--accent);
-    background: linear-gradient(145deg, rgba(79, 209, 255, 0.22), rgba(2, 6, 23, 0.65));
-    box-shadow: inset 0 0 12px rgba(2, 6, 23, 0.25);
-}
-
-[data-theme="light"] .home-icon-item .icon {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(237, 244, 252, 0.65));
-    border-color: rgba(13, 132, 217, 0.05);
-    box-shadow: inset 0 0 4px rgba(13, 132, 217, 0.05);
+    background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--accent) 20%, transparent),
+        color-mix(in srgb, var(--surface-panel) 85%, transparent)
+    );
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--surface-panel) 55%, transparent);
 }
 
 .home-icon-item svg {
@@ -464,13 +454,15 @@
 .home-icon-item:hover .home-icon-hit,
 .home-icon-item:focus-within .home-icon-hit {
     border-color: color-mix(in srgb, var(--accent) 65%, transparent);
-    background: rgba(79, 209, 255, 0.05);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px rgba(2, 6, 23, 0.35);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--surface-panel) 45%, transparent);
 }
 
 .home-icon-item.is-favorite .home-icon-hit .icon {
-    box-shadow: 0 0 16px rgba(79, 209, 255, 0.35), inset 0 0 12px rgba(2, 6, 23, 0.2);
+    box-shadow:
+        0 0 16px color-mix(in srgb, var(--accent) 35%, transparent),
+        inset 0 0 12px color-mix(in srgb, var(--surface-panel) 45%, transparent);
 }
 
 /* -----------------------------
@@ -532,8 +524,6 @@
 }
 
 .card-action-btn,
-.btn,
-.btn-primary,
 .btn.card-btn {
     border-radius: var(--radius-pill);
     padding: 9px 14px;
@@ -549,8 +539,6 @@
 }
 
 .card-action-btn:is(:hover, :focus-visible),
-.btn:is(:hover, :focus-visible),
-.btn-primary:is(:hover, :focus-visible),
 .btn.card-btn:is(:hover, :focus-visible) {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -558,8 +546,6 @@
 }
 
 .card-action-btn:disabled,
-.btn:disabled,
-.btn-primary:disabled,
 .btn.card-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
