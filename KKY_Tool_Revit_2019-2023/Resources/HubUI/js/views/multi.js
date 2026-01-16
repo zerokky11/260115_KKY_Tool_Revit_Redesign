@@ -185,6 +185,28 @@ export function renderMulti(root) {
     }
   });
 
+  function handleAddRvt() {
+    post('hub:pick-rvt', {});
+  }
+
+  function handleRemoveSelected() {
+    if (state.rvtChecked.size === 0) return;
+    state.rvtList = state.rvtList.filter((p) => !state.rvtChecked.has(p));
+    state.rvtChecked.clear();
+    markAllStale();
+    if (buildRvtSection.render) buildRvtSection.render();
+  }
+
+  function handleClearList() {
+    if (state.rvtList.length === 0) return;
+    const confirmed = window.confirm('RVT 목록을 모두 삭제할까요?');
+    if (!confirmed) return;
+    state.rvtList = [];
+    state.rvtChecked.clear();
+    markAllStale();
+    if (buildRvtSection.render) buildRvtSection.render();
+  }
+
   function buildGroupSection(title, desc, groupId) {
     const wrap = div('multi-section');
     if (groupId) wrap.dataset.group = groupId;
@@ -423,19 +445,9 @@ export function renderMulti(root) {
     title.append(badge);
 
     const controls = div('multi-rvt-controls');
-    const btnAdd = cardBtn('RVT 추가', () => post('hub:pick-rvt', {}), 'btn--primary');
-    const btnRemove = cardBtn('선택 제거', () => {
-      state.rvtList = state.rvtList.filter((p) => !state.rvtChecked.has(p));
-      state.rvtChecked.clear();
-      markAllStale();
-      renderRvtList();
-    }, 'btn--secondary');
-    const btnClear = cardBtn('목록 지우기', () => {
-      state.rvtList = [];
-      state.rvtChecked.clear();
-      markAllStale();
-      renderRvtList();
-    }, 'btn--danger');
+    const btnAdd = cardBtn('RVT 추가', handleAddRvt, 'btn--primary');
+    const btnRemove = cardBtn('선택 제거', handleRemoveSelected, 'btn--secondary');
+    const btnClear = cardBtn('목록 지우기', handleClearList, 'btn--danger');
     controls.append(btnAdd, btnRemove, btnClear);
 
     head.append(title, controls);
@@ -453,7 +465,7 @@ export function renderMulti(root) {
     emptyTitle.textContent = '등록된 RVT가 없습니다.';
     const emptySub = document.createElement('span');
     emptySub.textContent = 'RVT 추가로 파일을 등록하세요.';
-    const emptyBtn = cardBtn('RVT 추가', () => post('hub:pick-rvt', {}), 'btn--primary');
+    const emptyBtn = cardBtn('RVT 추가', handleAddRvt, 'btn--primary');
     empty.append(emptyTitle, emptySub, emptyBtn);
 
     tableWrap.append(table);
@@ -514,18 +526,20 @@ export function renderMulti(root) {
     const overlay = div('rvt-expand-overlay');
     overlay.classList.add('is-hidden');
     const modal = div('rvt-expand-modal');
-    const header = div('rvt-expand-header');
+    const toolbar = div('rvt-expand-toolbar');
     const titleWrap = div('rvt-expand-title');
     const title = document.createElement('h3');
     title.textContent = 'RVT 리스트 (확대 보기)';
     const badge = document.createElement('span');
     badge.className = 'chip chip--info';
     titleWrap.append(title, badge);
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn btn--ghost rvt-expand-close';
-    closeBtn.textContent = '✕';
-    header.append(titleWrap, closeBtn);
+    const toolbarActions = div('rvt-expand-actions');
+    const btnAdd = cardBtn('RVT 추가', handleAddRvt, 'btn--primary');
+    const btnRemove = cardBtn('선택 제거', handleRemoveSelected, 'btn--secondary');
+    const btnClear = cardBtn('목록 지우기', handleClearList, 'btn--danger');
+    const btnClose = cardBtn('닫기', closeExpandedRvtModal, 'btn--secondary');
+    toolbarActions.append(btnAdd, btnRemove, btnClear, btnClose);
+    toolbar.append(titleWrap, toolbarActions);
 
     const body = div('rvt-expand-body');
     const tableWrap = div('rvt-expand-table');
@@ -541,7 +555,7 @@ export function renderMulti(root) {
     footerBtn.textContent = '닫기';
     footer.append(footerBtn);
 
-    modal.append(header, body, footer);
+    modal.append(toolbar, body, footer);
     overlay.append(modal);
 
     overlay.addEventListener('click', (ev) => {
@@ -550,7 +564,6 @@ export function renderMulti(root) {
     modal.addEventListener('click', (ev) => {
       ev.stopPropagation();
     });
-    closeBtn.addEventListener('click', closeExpandedRvtModal);
     footerBtn.addEventListener('click', closeExpandedRvtModal);
 
     master.addEventListener('change', () => {
@@ -581,6 +594,8 @@ export function renderMulti(root) {
       }
       badge.textContent = `${count}개`;
       master.checked = count > 0 && state.rvtList.every((p) => state.rvtChecked.has(p));
+      btnRemove.disabled = state.rvtChecked.size === 0;
+      btnClear.disabled = state.rvtList.length === 0;
     }
 
     buildRvtExpandedModal.overlay = overlay;

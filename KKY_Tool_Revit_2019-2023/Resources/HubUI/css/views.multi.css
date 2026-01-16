@@ -580,7 +580,7 @@
     min-height: 0;
 }
 
-.rvt-expand-header {
+.rvt-expand-toolbar {
     flex: 0 0 auto;
     padding: 14px 16px;
     border-bottom: 1px solid var(--border-soft);
@@ -588,6 +588,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-card);
 }
 
 .rvt-expand-title {
@@ -600,17 +604,20 @@
     margin: 0;
 }
 
-.rvt-expand-close {
-    font-size: 1.1rem;
-    line-height: 1;
-    padding: 4px 8px;
+.rvt-expand-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .rvt-expand-body {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
     padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .rvt-expand-table {
@@ -619,6 +626,14 @@
     background: var(--surface-subtle);
     overflow: auto;
     min-height: 0;
+    flex: 1 1 auto;
+}
+
+.rvt-expand-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--tableHeaderBg);
 }
 
 .rvt-expand-table__grid {
