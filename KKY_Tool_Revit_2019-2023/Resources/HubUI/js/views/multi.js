@@ -817,7 +817,13 @@ export function renderMulti(root) {
         const statusChip = document.createElement('span');
         const status = item.status || 'unknown';
         statusChip.className = `summary-status summary-status--${status}`;
-        statusChip.textContent = status === 'skipped' ? '스킵' : status === 'failed' ? '실패' : status === 'success' ? '완료' : status;
+        statusChip.textContent = status === 'skipped'
+          ? '스킵'
+          : status === 'failed'
+            ? '실패'
+            : status === 'success'
+              ? '완료'
+              : '검토가 완료되었습니다.';
         statusCell.append(statusChip);
 
         const fileCell = document.createElement('td');
