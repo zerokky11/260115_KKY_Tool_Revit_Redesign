@@ -145,7 +145,7 @@ body[data-theme="dark"].is-busy::before { background:rgba(0,0,0,0.45); }
 
 .segmentpms-progress { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:auto; z-index:9999; background:transparent; opacity:1; transform:translateY(0); transition:opacity 0.2s ease, transform 0.2s ease; }
 .segmentpms-progress.is-hidden { opacity:0; visibility:hidden; pointer-events:none; transform: translateY(6px); }
-.segmentpms-progress-card { pointer-events:auto; width:420px; max-width:420px; min-width:420px; height:170px; max-height:170px; min-height:170px; background:#fff; color:#111; border:1px solid rgba(0,0,0,0.08); border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.22); padding:14px 18px 16px; box-sizing:border-box; display:flex; flex-direction:column; gap:6px; }
+.segmentpms-progress-card { pointer-events:auto; width:420px; max-width:420px; min-width:420px; min-height:170px; background:#fff; color:#111; border:1px solid rgba(0,0,0,0.08); border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.22); padding:14px 18px 16px; box-sizing:border-box; display:flex; flex-direction:column; gap:6px; }
 [data-theme="dark"] .segmentpms-progress-card { background:#1c1f2a; color:#e9ecf4; border-color:rgba(255,255,255,0.08); box-shadow:0 10px 30px rgba(0,0,0,0.45); }
 [data-theme] body.is-busy .segmentpms-progress-card { pointer-events:auto; }
 .segmentpms-progress-title { font-size:15px; font-weight:700; line-height:20px; height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -158,6 +158,10 @@ body[data-theme="dark"].is-busy::before { background:rgba(0,0,0,0.45); }
 .segmentpms-progress-fill { height:100%; width:0%; background: linear-gradient(90deg, #4cc9f0, #4361ee); transition: width 0.25s ease; }
 .segmentpms-progress-pct { text-align:right; font-weight:700; font-size:13px; margin-top:4px; color:#1f2937; height:18px; line-height:18px; }
 [data-theme="dark"] .segmentpms-progress-pct { color:#f1f5f9; }
+.segmentpms-progress-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:2px; }
+.segmentpms-progress-status { flex:1; font-size:12px; color:#4b5563; min-height:18px; line-height:18px; text-align:left; }
+[data-theme="dark"] .segmentpms-progress-status { color:#c3cbd9; }
+.segmentpms-progress-actions .btn { min-width:96px; }
 
 /* Excel mode dialog */
 .excelmode-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.38); display:flex; align-items:center; justify-content:center; z-index:12000; }
