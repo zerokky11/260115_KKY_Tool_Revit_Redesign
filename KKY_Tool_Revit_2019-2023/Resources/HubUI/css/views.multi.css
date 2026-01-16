@@ -473,6 +473,58 @@
     gap: 8px;
 }
 
+.familylink-search input {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-card);
+    color: var(--text-main);
+    padding: 6px 10px;
+}
+
+.familylink-target-list {
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-subtle);
+    padding: 8px;
+    max-height: 220px;
+    overflow: auto;
+    display: grid;
+    gap: 6px;
+}
+
+.familylink-target-row {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+}
+
+.familylink-target-row span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.familylink-target-empty {
+    text-align: center;
+    color: var(--text-soft);
+    padding: 12px;
+}
+
+.familylink-selected {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.familylink-selected-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
 .rvt-panel-header {
     display: flex;
     align-items: center;

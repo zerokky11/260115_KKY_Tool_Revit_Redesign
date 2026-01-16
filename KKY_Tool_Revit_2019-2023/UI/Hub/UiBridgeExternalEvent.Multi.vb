@@ -535,11 +535,15 @@ NextItem:
         End Sub
 
         Private Sub ExportFamilyLink(doAutoFit As Boolean)
-            If _multiFamilyLinkRows Is Nothing OrElse _multiFamilyLinkRows.Count = 0 Then
-                SendToWeb("hub:multi-exported", New With {.ok = False, .message = "패밀리 연동 결과가 없습니다."})
-                Return
+            Dim rows = If(_multiFamilyLinkRows, New List(Of FamilyLinkAuditRow)())
+            If rows.Count = 0 Then
+                rows.Add(New FamilyLinkAuditRow With {
+                    .FileName = "(Summary)",
+                    .Issue = "OK",
+                    .Notes = "검토 완료: 이상 없음(0건)"
+                })
             End If
-            Dim saved = FamilyLinkAuditExport.Export(_multiFamilyLinkRows, fastExport:=Not doAutoFit, autoFit:=doAutoFit)
+            Dim saved = FamilyLinkAuditExport.Export(rows, fastExport:=Not doAutoFit, autoFit:=doAutoFit)
             If String.IsNullOrWhiteSpace(saved) Then
                 SendToWeb("hub:multi-exported", New With {.ok = False, .message = "엑셀 저장이 취소되었습니다."})
             Else

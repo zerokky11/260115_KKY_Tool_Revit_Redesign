@@ -209,7 +209,16 @@ export function renderParamProp(root) {
             return;
         }
 
-        state.defs = Array.isArray(payload?.definitions) ? payload.definitions : [];
+        if (Array.isArray(payload?.items)) {
+            state.defs = payload.items.map((item) => ({
+                groupName: item.groupName || '',
+                name: item.name || '',
+                paramType: item.dataTypeToken || '',
+                visible: true
+            }));
+        } else {
+            state.defs = Array.isArray(payload?.definitions) ? payload.definitions : [];
+        }
         state.groups = deriveGroups(state.defs);
         state.targetGroups = Array.isArray(payload?.targetGroups) ? payload.targetGroups : [];
         state.selectedGroups = new Set(['(All Groups)']);

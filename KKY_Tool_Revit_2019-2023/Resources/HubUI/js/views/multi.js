@@ -6,7 +6,7 @@ import { createRvtTable, renderRvtRows, getRvtName } from './rvtTable.js';
 const FEATURE_META = {
   connector: { label: '커넥터 진단', desc: 'Parameter 값 연속성 검토', requiresSharedParams: false },
   guid: { label: 'GUID 검토', desc: '공유 파라미터 GUID 불일치 검토', requiresSharedParams: true },
-  familylink: { label: '패밀리 공유파라미터 연동 검토(다중 RVT)', desc: '복합 패밀리의 하위 패밀리 파라미터 연동 상태를 검토합니다.', requiresSharedParams: false },
+  familylink: { label: '패밀리 공유파라미터 연동 검토', desc: '복합 패밀리의 하위 패밀리 파라미터 연동 상태를 검토합니다.', requiresSharedParams: true },
   points: { label: 'Point 추출', desc: 'Project/Survey Point 좌표 추출', requiresSharedParams: false }
 };
 const FEATURE_KEYS = Object.keys(FEATURE_META);
@@ -37,11 +37,12 @@ export function renderMulti(root) {
     features: {
       connector: createFeatureState({ tol: 1.0, unit: 'inch', param: 'Comments' }),
       guid: createFeatureState({ includeFamily: false, includeAnnotation: false }),
-      familylink: createFeatureState({ targetsText: '', targets: [] }),
+      familylink: createFeatureState({ targetsText: '', selectedTargets: [], targets: [] }),
       points: createFeatureState({ unit: 'ft' })
     },
     results: {},
     sharedParamStatus: null,
+    sharedParamItems: [],
     ui: {
       modalOpen: false,
       activeFeatureKey: '',
@@ -64,7 +65,7 @@ export function renderMulti(root) {
   };
 
   FEATURE_KEYS.forEach((k) => {
-    state.results[k] = { count: 0, stale: true };
+    state.results[k] = { count: 0, stale: true, hasRun: false };
   });
 
   const page = div('feature-shell multi-page HubShell');
@@ -159,6 +160,12 @@ export function renderMulti(root) {
     showReviewSummary(payload || {});
   });
 
+  onHost('sharedparam:list', (payload) => {
+    const ok = payload?.ok !== false;
+    state.sharedParamItems = ok && Array.isArray(payload?.items) ? payload.items : [];
+    if (buildFamilyLinkConfig.renderList) buildFamilyLinkConfig.renderList(payload);
+  });
+
   onHost('hub:multi-error', (payload) => {
     setBusyState(false);
     ProgressDialog.hide();
@@ -215,6 +222,10 @@ export function renderMulti(root) {
     state.rvtChecked.clear();
     markAllStale();
     if (buildRvtSection.render) buildRvtSection.render();
+  }
+
+  function requestSharedParamList(context) {
+    post('sharedparam:list', { source: 'multi', context: context || '' });
   }
 
   function buildGroupSection(title, desc, groupId) {
@@ -446,14 +457,104 @@ export function renderMulti(root) {
 
   function buildFamilyLinkConfig() {
     const panel = div('multi-config');
-    const targets = makeField('대상 파라미터 (이름|GUID)', 'familylinkTargets', '예: ParamA|11111111-1111-1111-1111-111111111111', 'textarea');
-    targets.input.value = state.features.familylink.configDraft.targetsText;
-    targets.input.addEventListener('change', () => {
-      state.features.familylink.configDraft.targetsText = targets.input.value;
+    const searchWrap = div('familylink-search');
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = '파라미터 검색...';
+    searchWrap.append(searchInput);
+
+    const listWrap = div('familylink-target-list');
+    const listEmpty = div('familylink-target-empty');
+    listEmpty.textContent = 'Shared Parameter 목록이 없습니다.';
+    listWrap.append(listEmpty);
+
+    const selectedWrap = div('familylink-selected');
+    const selectedCount = document.createElement('strong');
+    const selectedChips = div('familylink-selected-chips');
+    selectedWrap.append(selectedCount, selectedChips);
+
+    const advanced = makeField('고급 입력 (이름|GUID)', 'familylinkTargets', '예: ParamA|11111111-1111-1111-1111-111111111111', 'textarea');
+    advanced.input.value = state.features.familylink.configDraft.targetsText;
+    advanced.input.addEventListener('change', () => {
+      state.features.familylink.configDraft.targetsText = advanced.input.value;
+      state.features.familylink.configDraft.selectedTargets = parseFamilyLinkTargets(advanced.input.value);
       markFeatureDirty('familylink');
+      renderFamilyLinkList();
     });
-    panel.append(targets.field);
-    return { panel, controls: { targets } };
+
+    searchInput.addEventListener('input', () => {
+      renderFamilyLinkList();
+    });
+
+    panel.append(searchWrap, listWrap, selectedWrap, advanced.field);
+
+    function renderFamilyLinkList(payload) {
+      const ok = payload?.ok !== false;
+      const items = ok ? state.sharedParamItems : [];
+      const query = searchInput.value.trim().toLowerCase();
+      listWrap.innerHTML = '';
+      if (!ok) {
+        const error = div('familylink-target-empty');
+        error.textContent = payload?.message || 'Shared Parameter 목록을 불러오지 못했습니다.';
+        listWrap.append(error);
+      } else if (!items.length) {
+        listWrap.append(listEmpty);
+      } else {
+        const filtered = items.filter((item) => {
+          if (!query) return true;
+          const hay = `${item.name || ''} ${item.groupName || ''} ${item.guid || ''}`.toLowerCase();
+          return hay.includes(query);
+        });
+        if (!filtered.length) {
+          listWrap.append(listEmpty);
+        } else {
+          filtered.forEach((item) => {
+            const row = document.createElement('label');
+            row.className = 'familylink-target-row';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = state.features.familylink.configDraft.selectedTargets.some((t) => t.guid === item.guid);
+            checkbox.addEventListener('change', () => {
+              const next = [...state.features.familylink.configDraft.selectedTargets];
+              if (checkbox.checked) {
+                next.push(item);
+              } else {
+                const idx = next.findIndex((t) => t.guid === item.guid);
+                if (idx >= 0) next.splice(idx, 1);
+              }
+              state.features.familylink.configDraft.selectedTargets = dedupeTargets(next);
+              state.features.familylink.configDraft.targetsText = buildTargetsText(state.features.familylink.configDraft.selectedTargets);
+              advanced.input.value = state.features.familylink.configDraft.targetsText;
+              markFeatureDirty('familylink');
+              renderFamilyLinkSelected();
+            });
+            const label = document.createElement('span');
+            const guidShort = (item.guid || '').slice(0, 8);
+            label.textContent = `${item.name || ''} (${item.groupName || '-'}) ${guidShort}`;
+            row.append(checkbox, label);
+            listWrap.append(row);
+          });
+        }
+      }
+      renderFamilyLinkSelected();
+    }
+
+    function renderFamilyLinkSelected() {
+      const selected = state.features.familylink.configDraft.selectedTargets || [];
+      selectedCount.textContent = `선택됨 ${selected.length}개`;
+      selectedChips.innerHTML = '';
+      selected.forEach((item) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip chip--info';
+        chip.textContent = item.name || '';
+        selectedChips.append(chip);
+      });
+      updateRunSummary();
+    }
+
+    buildFamilyLinkConfig.renderList = renderFamilyLinkList;
+    renderFamilyLinkList();
+    return { panel, controls: { searchInput, listWrap, selectedWrap, advanced } };
   }
 
   function buildRvtSection() {
@@ -928,7 +1029,10 @@ export function renderMulti(root) {
     refresh.type = 'button';
     refresh.className = 'btn btn--ghost sharedparam-banner__refresh';
     refresh.textContent = '상태 새로고침';
-    refresh.addEventListener('click', () => requestSharedParamStatus('manual'));
+    refresh.addEventListener('click', () => {
+        requestSharedParamStatus('manual');
+        requestSharedParamList('manual');
+    });
     head.append(title, badge, refresh);
 
     const path = div('sharedparam-banner__path');
@@ -953,6 +1057,7 @@ export function renderMulti(root) {
   function markStale(key) {
     state.results[key].stale = true;
     state.results[key].count = 0;
+    state.results[key].hasRun = false;
     syncFeatureRow(key);
     updateFeatureSummary(key);
     post('hub:multi-clear', { key });
@@ -971,6 +1076,7 @@ export function renderMulti(root) {
       if (!state.results[key]) return;
       state.results[key].count = summary[key].rows || 0;
       state.results[key].stale = false;
+      state.results[key].hasRun = true;
       syncFeatureRow(key);
     });
   }
@@ -997,6 +1103,13 @@ export function renderMulti(root) {
     if (!state.rvtList.length) {
       toast('RVT 파일을 추가하세요.', 'warn');
       return;
+    }
+    if (state.features.familylink.enabled) {
+      const targets = state.features.familylink.configCommitted.selectedTargets || [];
+      if (!targets.length) {
+        toast('패밀리 공유파라미터 연동 검토 대상이 없습니다.', 'warn');
+        return;
+      }
     }
     setBusyState(true);
     ProgressDialog.show('다중 RVT 검토', '준비 중...');
@@ -1141,6 +1254,7 @@ export function renderMulti(root) {
       if (state.results[key]) {
         state.results[key].count = 0;
         state.results[key].stale = true;
+        state.results[key].hasRun = false;
       }
     });
     syncFeatureRow('connector');
@@ -1157,6 +1271,13 @@ export function renderMulti(root) {
     }
     if (!feature.applied || feature.dirty) {
       return { label: '설정 필요', className: 'chip--warn' };
+    }
+    if (state.ui.activeFeatureKey === 'familylink') {
+      const targets = feature.configCommitted.selectedTargets || [];
+      const sharedOk = state.sharedParamStatus?.status === 'ok';
+      if (!sharedOk || targets.length < 1) {
+        return { label: '설정 필요', className: 'chip--warn' };
+      }
     }
     return { label: '검토 준비됨', className: 'chip--ok' };
   }
@@ -1228,8 +1349,8 @@ export function renderMulti(root) {
     }
     if (key === 'familylink') {
       return [
-        '대상 파라미터를 “이름|GUID” 형식으로 줄바꿈해 입력합니다.',
-        'GUID는 공유 파라미터 텍스트에 등록된 값과 일치해야 합니다.'
+        '공유 파라미터 목록에서 검토 대상 파라미터를 선택합니다.',
+        '고급 입력으로 “이름|GUID” 형식을 직접 입력할 수 있습니다.'
       ];
     }
     if (key === 'points') {
@@ -1277,6 +1398,22 @@ export function renderMulti(root) {
       targets.push({ name, guid });
     });
     return targets;
+  }
+
+  function dedupeTargets(items) {
+    const byGuid = new Map();
+    items.forEach((item) => {
+      if (!item || !item.guid) return;
+      byGuid.set(item.guid, item);
+    });
+    return Array.from(byGuid.values());
+  }
+
+  function buildTargetsText(items) {
+    return (items || [])
+      .filter((item) => item && item.name && item.guid)
+      .map((item) => `${item.name}|${item.guid}`)
+      .join('\n');
   }
 
   function renderSelectedFeatures() {
@@ -1351,10 +1488,10 @@ export function renderMulti(root) {
     entry.statusChip.className = `chip status-chip ${status.className}`;
 
     const res = state.results[key];
-    const hasResult = !!res && !res.stale && res.count > 0;
-    entry.exportBtn.disabled = state.busy || !hasResult;
-    entry.exportBtn.classList.toggle('btn--primary', hasResult);
-    entry.exportBtn.classList.toggle('btn--secondary', !hasResult);
+    const hasRun = !!res && res.hasRun && !res.stale;
+    entry.exportBtn.disabled = state.busy || !hasRun;
+    entry.exportBtn.classList.toggle('btn--primary', hasRun);
+    entry.exportBtn.classList.toggle('btn--secondary', !hasRun);
     entry.exportBtn.title = entry.exportBtn.disabled ? '검토 후 내보내기 가능' : '';
   }
 
@@ -1364,11 +1501,17 @@ export function renderMulti(root) {
     if (requiresSharedParams(key) && state.sharedParamStatus?.status && state.sharedParamStatus.status !== 'ok') {
       return { label: 'Shared Param 확인 필요', className: 'status-chip--warn' };
     }
+    if (key === 'familylink') {
+      const targets = feature.configCommitted.selectedTargets || [];
+      if (!targets.length) {
+        return { label: '설정 필요', className: 'status-chip--warn' };
+      }
+    }
     if (state.busy) {
       return { label: '진행 중', className: 'status-chip--running' };
     }
     const res = state.results[key];
-    if (res && !res.stale && res.count > 0) {
+    if (res && res.hasRun && !res.stale) {
       return { label: '완료', className: 'status-chip--done' };
     }
     if (!feature.applied || feature.dirty) {
@@ -1422,7 +1565,7 @@ export function renderMulti(root) {
       badge.textContent = label;
       badge.classList.remove('is-ok', 'is-warn', 'is-error');
       if (status.status === 'ok') badge.classList.add('is-ok');
-      else if (status.status === 'unset' || status.status === 'missing') badge.classList.add('is-warn');
+      else if (status.status === 'warn' || status.status === 'unset' || status.status === 'missing') badge.classList.add('is-warn');
       else badge.classList.add('is-error');
     }
     if (pathValue) {
@@ -1447,23 +1590,29 @@ export function renderMulti(root) {
     banner.style.display = 'block';
     buildSettingsModal.form.append(banner);
     requestSharedParamStatus('settings');
+    requestSharedParamList('settings');
     updateSharedParamBanner();
   }
 
   function updateSharedParamRunState() {
     const needsShared = FEATURE_KEYS.some((key) => state.features[key].enabled && requiresSharedParams(key));
     const ok = state.sharedParamStatus?.status === 'ok';
+    const familyLinkTargets = state.features.familylink?.configCommitted?.selectedTargets || [];
+    const familyLinkNeedsTargets = state.features.familylink?.enabled && familyLinkTargets.length < 1;
     if (buildRunBar.runSharedParamHint) {
       if (needsShared && !ok) {
         const warning = state.sharedParamStatus?.warning || 'Shared Parameter 미등록으로 실행이 제한됩니다.';
         buildRunBar.runSharedParamHint.textContent = warning;
+        buildRunBar.runSharedParamHint.style.display = 'block';
+      } else if (familyLinkNeedsTargets) {
+        buildRunBar.runSharedParamHint.textContent = '패밀리 공유파라미터 검토 대상이 없습니다.';
         buildRunBar.runSharedParamHint.style.display = 'block';
       } else {
         buildRunBar.runSharedParamHint.style.display = 'none';
       }
     }
     if (buildRunBar.startBtn && !state.busy) {
-      buildRunBar.startBtn.disabled = needsShared && !ok;
+      buildRunBar.startBtn.disabled = (needsShared && !ok) || familyLinkNeedsTargets;
     }
   }
 
@@ -1539,6 +1688,12 @@ export function renderMulti(root) {
 
   function buildCommittedFeature(key) {
     const feature = state.features[key];
+    if (key === 'familylink') {
+      return {
+        enabled: feature.enabled,
+        targets: feature.configCommitted.selectedTargets || []
+      };
+    }
     return {
       enabled: feature.enabled,
       ...feature.configCommitted
@@ -1547,7 +1702,10 @@ export function renderMulti(root) {
 
   function commitConfig(target) {
     if (state.ui.activeFeatureKey === 'familylink') {
-      target.configDraft.targets = parseFamilyLinkTargets(target.configDraft.targetsText);
+      const parsed = parseFamilyLinkTargets(target.configDraft.targetsText);
+      target.configDraft.selectedTargets = dedupeTargets([...target.configDraft.selectedTargets, ...parsed]);
+      target.configDraft.targets = target.configDraft.selectedTargets;
+      target.configDraft.targetsText = buildTargetsText(target.configDraft.selectedTargets);
     }
     target.configCommitted = deepCopy(target.configDraft);
     target.applied = true;
@@ -1566,6 +1724,9 @@ export function renderMulti(root) {
     const feature = state.features[key];
     if (!feature) return;
     feature.configDraft = deepCopy(feature.configCommitted);
+    if (key === 'familylink') {
+      feature.configDraft.targetsText = buildTargetsText(feature.configDraft.selectedTargets);
+    }
     feature.dirty = false;
   }
 
@@ -1597,7 +1758,8 @@ export function renderMulti(root) {
       controls.includeAnno.input.checked = draft.includeAnnotation;
     } else if (key === 'familylink') {
       const draft = state.features.familylink.configDraft;
-      controls.targets.input.value = draft.targetsText;
+      controls.advanced.input.value = draft.targetsText;
+      if (buildFamilyLinkConfig.renderList) buildFamilyLinkConfig.renderList();
     } else if (key === 'points') {
       const draft = state.features.points.configDraft;
       controls.unit.select.value = draft.unit;

@@ -22,7 +22,7 @@ export function renderActiveMenu(root) {
       'dup'
     ),
     buildCard(
-      '패밀리 공유파라미터 추가 및 연동(활성 문서)',
+      '패밀리 공유파라미터 추가 및 연동',
       '활성 문서에서 공유 파라미터 추가 및 연동 상태를 점검합니다.',
       'paramprop'
     )
