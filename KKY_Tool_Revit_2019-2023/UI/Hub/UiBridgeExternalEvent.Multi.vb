@@ -77,14 +77,6 @@ Namespace UI.Hub
             Public Property IncludeAnnotation As Boolean
         End Class
 
-        Private Class MultiParamPropOptions
-            Public Property Enabled As Boolean
-            Public Property ParamNames As List(Of String) = New List(Of String)()
-            Public Property Group As Integer = CInt(BuiltInParameterGroup.PG_TEXT)
-            Public Property IsInstance As Boolean = True
-            Public Property ExcludeDummy As Boolean
-        End Class
-
         Private Class MultiFamilyLinkOptions
             Public Property Enabled As Boolean
             Public Property Targets As List(Of FamilyLinkTargetParam) = New List(Of FamilyLinkTargetParam)()
@@ -100,10 +92,17 @@ Namespace UI.Hub
             Public Property Connector As MultiConnectorOptions = New MultiConnectorOptions()
             Public Property Pms As MultiPmsOptions = New MultiPmsOptions()
             Public Property Guid As MultiGuidOptions = New MultiGuidOptions()
-            Public Property ParamProp As MultiParamPropOptions = New MultiParamPropOptions()
             Public Property FamilyLink As MultiFamilyLinkOptions = New MultiFamilyLinkOptions()
             Public Property Points As MultiPointsOptions = New MultiPointsOptions()
             Public Property RvtPaths As List(Of String) = New List(Of String)()
+        End Class
+
+        Private Class MultiRunItem
+            Public Property File As String = ""
+            Public Property Status As String = ""
+            Public Property Reason As String = ""
+            Public Property Phase As String = ""
+            Public Property ElapsedMs As Long
         End Class
 
         Private Shared ReadOnly _multiLock As New Object()
@@ -125,9 +124,9 @@ Namespace UI.Hub
         Private Shared _multiGuidProject As DataTable
         Private Shared _multiGuidFamilyDetail As DataTable
         Private Shared _multiGuidFamilyIndex As DataTable
-        Private Shared _multiParamDetails As List(Of ParamPropagateService.SharedParamDetailRow)
         Private Shared _multiFamilyLinkRows As List(Of FamilyLinkAuditRow)
         Private Shared _multiPointRows As List(Of ExportPointsService.Row)
+        Private Shared _multiRunItems As List(Of MultiRunItem)
 
         ' === hub:pick-rvt ===
         ' payload: none
@@ -164,8 +163,6 @@ Namespace UI.Hub
                     _multiGuidProject = Nothing
                     _multiGuidFamilyDetail = Nothing
                     _multiGuidFamilyIndex = Nothing
-                Case "paramprop"
-                    _multiParamDetails = Nothing
                 Case "familylink"
                     _multiFamilyLinkRows = Nothing
                 Case "points"
@@ -176,7 +173,7 @@ Namespace UI.Hub
         ' === hub:multi-run ===
         ' payload:
         '  { rvtPaths:[], commonOptions:{extraParams,targetFilter,excludeEndDummy},
-        '    features:{connector,pms,guid,paramprop,familylink,points} }
+        '    features:{connector,pms,guid,familylink,points} }
         ' response:
         '  hub:multi-progress {percent,message,detail}
         '  hub:multi-done { summary:{key:{rows}} }
@@ -200,6 +197,7 @@ Namespace UI.Hub
                 _multiPending = True
                 _multiBusy = False
                 _multiApp = app
+                _multiRunItems = New List(Of MultiRunItem)()
                 ResetMultiCaches()
                 If Not _multiIdlingBound Then
                     AddHandler app.Idling, AddressOf HandleMultiIdling
@@ -243,21 +241,27 @@ Namespace UI.Hub
             ReportMultiProgress(basePct * 100.0R, "파일 여는 중", safeName)
 
             Dim doc As Document = Nothing
+            Dim phase As String = "OPEN"
+            Dim started = Date.Now
             Try
                 If Not System.IO.File.Exists(filePath) Then
                     ReportMultiProgress(basePct * 100.0R, "파일을 찾을 수 없습니다.", safeName)
                     AppendMultiConnectorError(safeName, "파일을 찾을 수 없습니다.")
+                    AppendMultiRunItem(safeName, "skipped", "파일을 찾을 수 없습니다.", "OPEN", started)
                     GoTo NextItem
                 End If
 
                 Dim mp = ModelPathUtils.ConvertUserVisiblePathToModelPath(filePath)
                 doc = app.Application.OpenDocumentFile(mp, BuildOpenOptions())
                 ReportMultiProgress(basePct * 100.0R, "파일 열기 완료", safeName)
+                phase = "RUN"
 
                 RunMultiForDocument(app, doc, filePath, safeName, basePct)
+                AppendMultiRunItem(safeName, "success", "", "DONE", started)
             Catch ex As Exception
                 AppendMultiConnectorError(safeName, $"파일 처리 실패: {ex.Message}")
                 ReportMultiProgress(basePct * 100.0R, "파일 처리 실패 (건너뜀)", safeName)
+                AppendMultiRunItem(safeName, "failed", ex.Message, phase, started)
                 SendToWeb("host:warn", New With {.message = $"파일 처리 실패: {safeName} - {ex.Message}"})
             Finally
                 If doc IsNot Nothing Then
@@ -349,23 +353,6 @@ NextItem:
                 ReportMultiProgress(CalcStepPercent(basePct, stepIndex, steps), "GUID 검토 완료", safeName)
             End If
 
-            If _multiRequest.ParamProp.Enabled Then
-                stepIndex += 1
-                ReportMultiProgress(CalcStepPercent(basePct, stepIndex, steps), "파라미터 연동 검토 실행 중", safeName)
-                Dim req As New ParamPropagateService.SharedParamRunRequest With {
-                    .ParamNames = _multiRequest.ParamProp.ParamNames,
-                    .TargetGroup = _multiRequest.ParamProp.Group,
-                    .IsInstance = _multiRequest.ParamProp.IsInstance,
-                    .ExcludeDummy = _multiRequest.ParamProp.ExcludeDummy
-                }
-                Dim res = ParamPropagateService.RunOnDocument(app, doc, req, Nothing)
-                If res IsNot Nothing AndAlso res.Details IsNot Nothing Then
-                    If _multiParamDetails Is Nothing Then _multiParamDetails = New List(Of ParamPropagateService.SharedParamDetailRow)()
-                    _multiParamDetails.AddRange(res.Details)
-                End If
-                ReportMultiProgress(CalcStepPercent(basePct, stepIndex, steps), "파라미터 연동 검토 완료", safeName)
-            End If
-
             If _multiRequest.FamilyLink.Enabled Then
                 stepIndex += 1
                 ReportMultiProgress(CalcStepPercent(basePct, stepIndex, steps), "패밀리 연동 검토 실행 중", safeName)
@@ -394,11 +381,11 @@ NextItem:
                 {"connector", New With {.rows = If(_multiConnectorRows, New List(Of Dictionary(Of String, Object))()).Count}},
                 {"pms", New With {.rows = If(_multiPmsSizeRows, New List(Of Dictionary(Of String, Object))()).Count}},
                 {"guid", New With {.rows = If(_multiGuidProject, New DataTable()).Rows.Count}},
-                {"paramprop", New With {.rows = If(_multiParamDetails, New List(Of ParamPropagateService.SharedParamDetailRow)()).Count}},
                 {"familylink", New With {.rows = If(_multiFamilyLinkRows, New List(Of FamilyLinkAuditRow)()).Count}},
                 {"points", New With {.rows = If(_multiPointRows, New List(Of ExportPointsService.Row)()).Count}}
             }
             SendToWeb("hub:multi-done", New With {.summary = summary})
+            SendToWeb("multi:review-summary", BuildMultiSummaryPayload())
         End Sub
 
         ' === hub:multi-export ===
@@ -416,8 +403,6 @@ NextItem:
                         ExportSegmentPms(doAutoFit)
                     Case "guid"
                         ExportGuid(excelMode)
-                    Case "paramprop"
-                        ExportParamProp(doAutoFit)
                     Case "familylink"
                         ExportFamilyLink(doAutoFit)
                     Case "points"
@@ -604,7 +589,6 @@ NextItem:
             _multiGuidProject = Nothing
             _multiGuidFamilyDetail = Nothing
             _multiGuidFamilyIndex = Nothing
-            _multiParamDetails = Nothing
             _multiFamilyLinkRows = Nothing
             _multiPointRows = Nothing
         End Sub
@@ -628,7 +612,6 @@ NextItem:
                 req.Connector = ParseConnector(fd)
                 req.Pms = ParsePms(fd)
                 req.Guid = ParseGuid(fd)
-                req.ParamProp = ParseParamProp(fd)
                 req.FamilyLink = ParseFamilyLink(fd)
                 req.Points = ParsePoints(fd)
             End If
@@ -669,18 +652,6 @@ NextItem:
             Return opt
         End Function
 
-        Private Function ParseParamProp(fd As Dictionary(Of String, Object)) As MultiParamPropOptions
-            Dim opt As New MultiParamPropOptions()
-            Dim obj = GetDictValue(fd, "paramprop")
-            Dim d = ToDict(obj)
-            opt.Enabled = ToBool(GetDictValue(d, "enabled"))
-            opt.ParamNames = ExtractStringList(d, "paramNames")
-            opt.Group = ToInt(GetDictValue(d, "group"), CInt(BuiltInParameterGroup.PG_TEXT))
-            opt.IsInstance = ToBool(GetDictValue(d, "isInstance"), True)
-            opt.ExcludeDummy = ToBool(GetDictValue(d, "excludeDummy"))
-            Return opt
-        End Function
-
         Private Function ParseFamilyLink(fd As Dictionary(Of String, Object)) As MultiFamilyLinkOptions
             Dim opt As New MultiFamilyLinkOptions()
             Dim obj = GetDictValue(fd, "familylink")
@@ -716,7 +687,7 @@ NextItem:
 
         Private Shared Function AnyFeatureEnabled(req As MultiRunRequest) As Boolean
             If req Is Nothing Then Return False
-            Return req.Connector.Enabled OrElse req.Pms.Enabled OrElse req.Guid.Enabled OrElse req.ParamProp.Enabled OrElse req.FamilyLink.Enabled OrElse req.Points.Enabled
+            Return req.Connector.Enabled OrElse req.Pms.Enabled OrElse req.Guid.Enabled OrElse req.FamilyLink.Enabled OrElse req.Points.Enabled
         End Function
 
         Private Shared Function CountEnabledFeatures(req As MultiRunRequest) As Integer
@@ -725,10 +696,42 @@ NextItem:
             If req.Connector.Enabled Then count += 1
             If req.Pms.Enabled Then count += 1
             If req.Guid.Enabled Then count += 1
-            If req.ParamProp.Enabled Then count += 1
             If req.FamilyLink.Enabled Then count += 1
             If req.Points.Enabled Then count += 1
             Return Math.Max(count, 1)
+        End Function
+
+        Private Sub AppendMultiRunItem(fileName As String, status As String, reason As String, phase As String, started As DateTime)
+            If _multiRunItems Is Nothing Then _multiRunItems = New List(Of MultiRunItem)()
+            Dim elapsed = CLng((Date.Now - started).TotalMilliseconds)
+            _multiRunItems.Add(New MultiRunItem With {
+                .File = fileName,
+                .Status = status,
+                .Reason = reason,
+                .Phase = phase,
+                .ElapsedMs = elapsed
+            })
+        End Sub
+
+        Private Function BuildMultiSummaryPayload() As Object
+            Dim items = If(_multiRunItems, New List(Of MultiRunItem)())
+            Dim total = If(_multiTotal, items.Count)
+            Dim success = items.Count(Function(x) String.Equals(x.Status, "success", StringComparison.OrdinalIgnoreCase))
+            Dim skipped = items.Count(Function(x) String.Equals(x.Status, "skipped", StringComparison.OrdinalIgnoreCase))
+            Dim failed = items.Count(Function(x) String.Equals(x.Status, "failed", StringComparison.OrdinalIgnoreCase))
+            Return New With {
+                .ok = True,
+                .mode = "multiRvt",
+                .featureId = "multi_rvt_batch",
+                .title = "다중 RVT 검토",
+                .finishedAt = Date.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                .total = total,
+                .success = success,
+                .skipped = skipped,
+                .failed = failed,
+                .canceled = False,
+                .items = items
+            }
         End Function
 
         Private Sub ReportMultiProgress(percent As Double, message As String, detail As String)

@@ -58,7 +58,8 @@ export function renderMulti(root) {
       selectedTableBody: null,
       selectedRows: new Map(),
       groupFilter: 'all',
-      isRvtListExpanded: false
+      isRvtListExpanded: false,
+      reviewSummaryData: null
     }
   };
 
@@ -103,6 +104,7 @@ export function renderMulti(root) {
   layout.append(leftCol, rightCol);
   page.append(layout);
   page.append(buildSettingsModal());
+  page.append(buildReviewSummaryModal());
   page.append(buildRvtExpandedModal());
   target.append(page);
 
@@ -150,6 +152,11 @@ export function renderMulti(root) {
     updateResultSummary(payload?.summary || {});
     state.ui.runCompleted = true;
     updateRunActionLabel();
+  });
+
+  onHost('multi:review-summary', (payload) => {
+    ProgressDialog.hide();
+    showReviewSummary(payload || {});
   });
 
   onHost('hub:multi-error', (payload) => {
@@ -617,6 +624,118 @@ export function renderMulti(root) {
     buildRvtExpandedModal.badge = badge;
     buildRvtExpandedModal.render = renderExpandedList;
     return overlay;
+  }
+
+  function buildReviewSummaryModal() {
+    const overlay = div('review-summary-backdrop is-hidden');
+    const modal = div('review-summary-modal');
+    const header = div('review-summary-header');
+    const title = document.createElement('h3');
+    title.textContent = '검토 완료';
+    header.append(title);
+
+    const body = div('review-summary-body');
+    const message = document.createElement('p');
+    message.className = 'review-summary-message';
+    message.textContent = '검토가 완료되었습니다.';
+    const stats = div('review-summary-stats');
+
+    const tableWrap = div('review-summary-table');
+    const table = document.createElement('table');
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>상태</th>
+          <th>파일명</th>
+          <th>사유</th>
+        </tr>
+      </thead>
+      <tbody></tbody>`;
+    const tbody = table.querySelector('tbody');
+    tableWrap.append(table);
+
+    body.append(message, stats, tableWrap);
+
+    const footer = div('review-summary-footer');
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'btn btn--primary';
+    confirmBtn.textContent = '확인';
+    footer.append(confirmBtn);
+
+    modal.append(header, body, footer);
+    overlay.append(modal);
+
+    overlay.addEventListener('click', (ev) => ev.stopPropagation());
+    modal.addEventListener('click', (ev) => ev.stopPropagation());
+    confirmBtn.addEventListener('click', () => {
+      overlay.classList.add('is-hidden');
+    });
+
+    buildReviewSummaryModal.overlay = overlay;
+    buildReviewSummaryModal.stats = stats;
+    buildReviewSummaryModal.tbody = tbody;
+    return overlay;
+  }
+
+  function showReviewSummary(payload) {
+    if (!buildReviewSummaryModal.overlay) return;
+    state.ui.reviewSummaryData = payload;
+    const stats = buildReviewSummaryModal.stats;
+    const tbody = buildReviewSummaryModal.tbody;
+    if (!stats || !tbody) return;
+
+    const total = Number(payload?.total) || 0;
+    const success = Number(payload?.success) || 0;
+    const skipped = Number(payload?.skipped) || 0;
+    const failed = Number(payload?.failed) || 0;
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const detailItems = items.filter((item) => item.status !== 'success');
+
+    stats.innerHTML = '';
+    stats.append(
+      buildSummaryChip('전체', total, 'summary-chip'),
+      buildSummaryChip('완료', success, 'summary-chip summary-chip--success'),
+      buildSummaryChip('스킵', skipped, 'summary-chip summary-chip--skip'),
+      buildSummaryChip('실패', failed, 'summary-chip summary-chip--fail')
+    );
+
+    tbody.innerHTML = '';
+    if (!detailItems.length) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 3;
+      cell.className = 'review-summary-empty';
+      cell.textContent = '스킵/실패 항목이 없습니다.';
+      row.append(cell);
+      tbody.append(row);
+    } else {
+      detailItems.forEach((item) => {
+        const row = document.createElement('tr');
+        const statusCell = document.createElement('td');
+        const statusChip = document.createElement('span');
+        const status = item.status || 'unknown';
+        statusChip.className = `summary-status summary-status--${status}`;
+        statusChip.textContent = status === 'skipped' ? '스킵' : status === 'failed' ? '실패' : status === 'success' ? '완료' : status;
+        statusCell.append(statusChip);
+
+        const fileCell = document.createElement('td');
+        fileCell.textContent = item.file || '';
+        const reasonCell = document.createElement('td');
+        reasonCell.textContent = item.reason || '';
+        row.append(statusCell, fileCell, reasonCell);
+        tbody.append(row);
+      });
+    }
+
+    buildReviewSummaryModal.overlay.classList.remove('is-hidden');
+  }
+
+  function buildSummaryChip(label, value, className) {
+    const chip = document.createElement('div');
+    chip.className = className;
+    chip.textContent = `${label}: ${value}`;
+    return chip;
   }
 
   function openExpandedRvtModal() {
