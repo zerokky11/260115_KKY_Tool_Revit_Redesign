@@ -63,7 +63,7 @@ export function renderMulti(root) {
     state.results[k] = { count: 0, stale: true };
   });
 
-  const page = div('feature-shell multi-page');
+  const page = div('feature-shell multi-page HubShell');
   const hasLocalCommonOptions = loadCommonOptionsFromStorage();
   const header = div('feature-header multi-header');
   header.innerHTML = `
@@ -74,9 +74,9 @@ export function renderMulti(root) {
     </div>`;
   page.append(header);
 
-  const layout = div('multi-layout');
-  const leftCol = div('multi-left');
-  const rightCol = div('multi-right');
+  const layout = div('multi-layout HubBody');
+  const leftCol = div('multi-left HubLeft');
+  const rightCol = div('multi-right HubRight');
 
   const group1 = buildGroupSection('납품 시 BQC 검토', '커넥터 진단 (BQC용)', 'bqc');
   const group2 = buildGroupSection('주기적 검토', 'PMS / GUID / 파라미터 연동', 'periodic');
@@ -90,9 +90,11 @@ export function renderMulti(root) {
   group3.section.append(buildToggleRow('points', buildPointsConfig()));
 
   const rightFilter = buildGroupFilter();
-  const leftSticky = div('left-sticky');
-  leftSticky.append(buildRunBar(), buildSelectedFeaturesSection());
-  leftCol.append(leftSticky, buildRvtSection());
+  const leftTop = div('left-sticky HubLeftTop');
+  leftTop.append(buildRunBar());
+  const leftSelected = div('HubLeftSelected');
+  leftSelected.append(buildSelectedFeaturesSection());
+  leftCol.append(leftTop, leftSelected, buildRvtSection());
   rightCol.append(rightFilter, group1.wrap, group2.wrap, group3.wrap);
   layout.append(leftCol, rightCol);
   page.append(layout);
@@ -402,7 +404,7 @@ export function renderMulti(root) {
   }
 
   function buildRvtSection() {
-    const section = div('multi-section rvt-panel');
+    const section = div('multi-section rvt-panel HubLeftRvt');
     const head = div('rvt-panel-header');
     const title = document.createElement('div');
     title.className = 'rvt-panel-title';

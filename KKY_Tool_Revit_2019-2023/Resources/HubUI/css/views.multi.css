@@ -1,11 +1,13 @@
-.multi-page {
+.multi-page,
+.HubShell {
     display: flex;
     flex-direction: column;
     gap: 18px;
     color: var(--text-main);
-    height: 100vh;
+    height: 100%;
     min-height: 0;
     overflow: hidden;
+    flex: 1 1 auto;
 }
 
 .multi-page .feature-shell {
@@ -24,38 +26,92 @@
     margin: 0 0 6px;
 }
 
-.multi-layout {
-    display: grid;
-    grid-template-columns: minmax(480px, 0.95fr) minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
+.multi-layout,
+.HubBody {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    min-width: 0;
     min-height: 0;
-    flex: 1;
+    flex: 1 1 auto;
     overflow: hidden;
 }
 
 .multi-left,
-.multi-right {
+.multi-right,
+.HubLeft,
+.HubRight {
     display: flex;
     flex-direction: column;
     gap: 16px;
     min-height: 0;
+    min-width: 0;
 }
 
-.multi-right {
-    overflow-y: auto;
-    padding-right: 4px;
+.multi-right,
+.HubRight {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding-right: 8px;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
-.multi-left {
+.multi-left,
+.HubLeft {
+    flex: 0 0 520px;
+    min-width: 420px;
+    max-width: 620px;
     height: 100%;
     overflow: hidden;
+    border-right: 1px solid var(--border-soft);
+    padding-right: 16px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.HubLeftTop,
+.HubLeftSelected {
+    flex: 0 0 auto;
+    min-height: 0;
+}
+
+.HubLeftRvt {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
 }
 
 .left-sticky {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.HubRight,
+.rvt-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.HubRight::-webkit-scrollbar,
+.rvt-table-wrap::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.HubRight::-webkit-scrollbar-track,
+.rvt-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.HubRight::-webkit-scrollbar-thumb,
+.rvt-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
 }
 
 .multi-section {
@@ -875,28 +931,6 @@
 }
 
 @media (max-width: 960px) {
-    .multi-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .multi-page {
-        height: auto;
-        overflow: auto;
-    }
-
-    .multi-right {
-        overflow: visible;
-        padding-right: 0;
-    }
-
-    .multi-left {
-        overflow: visible;
-    }
-
-    .left-sticky {
-        padding-bottom: 0;
-    }
-
     .run-bar {
         grid-template-columns: 1fr;
     }
