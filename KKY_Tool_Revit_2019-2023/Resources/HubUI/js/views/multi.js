@@ -614,10 +614,16 @@ export function renderMulti(root) {
     const table = document.createElement('table');
     table.className = 'selected-table';
     table.innerHTML = `
+      <colgroup>
+        <col style="width:45%">
+        <col style="width:120px">
+        <col style="width:120px">
+        <col style="width:140px">
+      </colgroup>
       <thead>
         <tr>
           <th>기능</th>
-          <th>상태</th>
+          <th class="selected-status-col">상태</th>
           <th>설정</th>
           <th>엑셀</th>
         </tr>
@@ -1130,6 +1136,7 @@ export function renderMulti(root) {
       nameCell.append(nameWrap);
 
       const statusCell = document.createElement('td');
+      statusCell.className = 'selected-status-col';
       const statusChip = document.createElement('span');
       statusChip.className = 'chip status-chip';
       statusCell.append(statusChip);

@@ -712,6 +712,7 @@
     border: 1px solid var(--border-soft);
     border-radius: 12px;
     overflow: hidden;
+    table-layout: fixed;
 }
 
 .selected-table th,
@@ -726,6 +727,12 @@
     color: var(--tableHeaderText);
     font-weight: 600;
     white-space: nowrap;
+}
+
+.selected-status-col {
+    width: 120px;
+    min-width: 120px;
+    text-align: center;
 }
 
 .selected-table tbody tr:last-child td {
@@ -743,6 +750,8 @@
     font-size: 0.88rem;
     color: var(--text-main);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .selected-name span {
@@ -761,6 +770,11 @@
 
 .status-chip {
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    word-break: keep-all;
 }
 
 .status-chip--idle {
