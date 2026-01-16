@@ -730,9 +730,18 @@
 }
 
 .selected-status-col {
-    width: 120px;
-    min-width: 120px;
-    text-align: center;
+    width: 110px;
+    min-width: 110px;
+}
+
+.selected-action-col {
+    text-align: right;
+    padding-left: 6px;
+}
+
+.selected-action-col .chip,
+.selected-action-col .btn {
+    margin-left: auto;
 }
 
 .selected-table tbody tr:last-child td {

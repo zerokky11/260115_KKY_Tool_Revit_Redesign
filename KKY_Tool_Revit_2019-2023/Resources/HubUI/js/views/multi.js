@@ -615,17 +615,17 @@ export function renderMulti(root) {
     table.className = 'selected-table';
     table.innerHTML = `
       <colgroup>
-        <col style="width:45%">
+        <col>
+        <col style="width:110px">
+        <col style="width:76px">
         <col style="width:120px">
-        <col style="width:120px">
-        <col style="width:140px">
       </colgroup>
       <thead>
         <tr>
           <th>기능</th>
-          <th class="selected-status-col">상태</th>
-          <th>설정</th>
-          <th>엑셀</th>
+          <th class="selected-status-col selected-action-col">상태</th>
+          <th class="selected-action-col">설정</th>
+          <th class="selected-action-col">엑셀</th>
         </tr>
       </thead>
       <tbody></tbody>`;
@@ -1136,12 +1136,13 @@ export function renderMulti(root) {
       nameCell.append(nameWrap);
 
       const statusCell = document.createElement('td');
-      statusCell.className = 'selected-status-col';
+      statusCell.className = 'selected-status-col selected-action-col';
       const statusChip = document.createElement('span');
       statusChip.className = 'chip status-chip';
       statusCell.append(statusChip);
 
       const settingsCell = document.createElement('td');
+      settingsCell.className = 'selected-action-col';
       const settingsBtn = document.createElement('button');
       settingsBtn.type = 'button';
       settingsBtn.className = 'btn btn--secondary';
@@ -1150,6 +1151,7 @@ export function renderMulti(root) {
       settingsCell.append(settingsBtn);
 
       const exportCell = document.createElement('td');
+      exportCell.className = 'selected-action-col';
       const exportBtn = document.createElement('button');
       exportBtn.type = 'button';
       exportBtn.className = 'btn btn--secondary';
