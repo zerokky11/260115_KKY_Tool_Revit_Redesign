@@ -55,7 +55,8 @@ export function renderMulti(root) {
       runSharedParamHint: null,
       selectedTableBody: null,
       selectedRows: new Map(),
-      groupFilter: 'all'
+      groupFilter: 'all',
+      isRvtListExpanded: false
     }
   };
 
@@ -99,6 +100,7 @@ export function renderMulti(root) {
   layout.append(leftCol, rightCol);
   page.append(layout);
   page.append(buildSettingsModal());
+  page.append(buildRvtExpandedModal());
   target.append(page);
 
   renderGroupVisibility();
@@ -174,6 +176,13 @@ export function renderMulti(root) {
     state.sharedParamStatus = payload || {};
     updateSharedParamBanner();
     updateRunSummary();
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && state.ui.isRvtListExpanded) {
+      ev.preventDefault();
+      closeExpandedRvtModal();
+    }
   });
 
   function buildGroupSection(title, desc, groupId) {
@@ -436,6 +445,9 @@ export function renderMulti(root) {
     const tableWrap = div('rvt-table-wrap');
     const { table, tbody, master } = createRvtTable();
     const summary = div('multi-rvt-summary');
+    const footer = div('rvt-list-footer');
+    const footerRight = div('rvt-list-footer__right');
+    const expandBtn = cardBtn('리스트 크게 보기', () => openExpandedRvtModal(), 'btn--secondary');
     const empty = div('rvt-empty');
     const emptyTitle = document.createElement('strong');
     emptyTitle.textContent = '등록된 RVT가 없습니다.';
@@ -445,7 +457,9 @@ export function renderMulti(root) {
     empty.append(emptyTitle, emptySub, emptyBtn);
 
     tableWrap.append(table);
-    body.append(tableWrap, empty, summary);
+    footerRight.append(expandBtn);
+    footer.append(summary, footerRight);
+    body.append(tableWrap, empty, footer);
     section.append(body);
 
     function syncMaster() {
@@ -483,15 +497,109 @@ export function renderMulti(root) {
       badge.textContent = `${count}개`;
       empty.style.display = count ? 'none' : 'flex';
       tableWrap.style.display = count ? 'block' : 'none';
+      expandBtn.disabled = count === 0;
       syncMaster();
       btnRemove.disabled = state.rvtChecked.size === 0;
       btnClear.disabled = state.rvtList.length === 0;
       updateRunSummary();
+      if (buildRvtExpandedModal.render) buildRvtExpandedModal.render();
     }
 
     buildRvtSection.render = renderRvtList;
     renderRvtList();
     return section;
+  }
+
+  function buildRvtExpandedModal() {
+    const overlay = div('rvt-expand-overlay');
+    overlay.classList.add('is-hidden');
+    const modal = div('rvt-expand-modal');
+    const header = div('rvt-expand-header');
+    const titleWrap = div('rvt-expand-title');
+    const title = document.createElement('h3');
+    title.textContent = 'RVT 리스트 (확대 보기)';
+    const badge = document.createElement('span');
+    badge.className = 'chip chip--info';
+    titleWrap.append(title, badge);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn btn--ghost rvt-expand-close';
+    closeBtn.textContent = '✕';
+    header.append(titleWrap, closeBtn);
+
+    const body = div('rvt-expand-body');
+    const tableWrap = div('rvt-expand-table');
+    const { table, tbody, master } = createRvtTable();
+    table.classList.add('rvt-expand-table__grid');
+    tableWrap.append(table);
+    body.append(tableWrap);
+
+    const footer = div('rvt-expand-footer');
+    const footerBtn = document.createElement('button');
+    footerBtn.type = 'button';
+    footerBtn.className = 'btn btn--secondary';
+    footerBtn.textContent = '닫기';
+    footer.append(footerBtn);
+
+    modal.append(header, body, footer);
+    overlay.append(modal);
+
+    overlay.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+    });
+    modal.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+    });
+    closeBtn.addEventListener('click', closeExpandedRvtModal);
+    footerBtn.addEventListener('click', closeExpandedRvtModal);
+
+    master.addEventListener('change', () => {
+      if (master.checked) {
+        state.rvtList.forEach((p) => state.rvtChecked.add(p));
+      } else {
+        state.rvtChecked.clear();
+      }
+      renderRvtList();
+    });
+
+    function renderExpandedList() {
+      const rows = state.rvtList.map((path, idx) => ({
+        index: idx + 1,
+        path,
+        name: getRvtName(path),
+        checked: state.rvtChecked.has(path),
+        onToggle: (checked) => {
+          if (checked) state.rvtChecked.add(path);
+          else state.rvtChecked.delete(path);
+          renderRvtList();
+        }
+      }));
+      const count = state.rvtList.length;
+      tbody.innerHTML = '';
+      if (count > 0) {
+        renderRvtRows(tbody, rows);
+      }
+      badge.textContent = `${count}개`;
+      master.checked = count > 0 && state.rvtList.every((p) => state.rvtChecked.has(p));
+    }
+
+    buildRvtExpandedModal.overlay = overlay;
+    buildRvtExpandedModal.badge = badge;
+    buildRvtExpandedModal.render = renderExpandedList;
+    return overlay;
+  }
+
+  function openExpandedRvtModal() {
+    if (!buildRvtExpandedModal.overlay) return;
+    state.ui.isRvtListExpanded = true;
+    buildRvtExpandedModal.overlay.classList.remove('is-hidden');
+    buildRvtExpandedModal.render();
+  }
+
+  function closeExpandedRvtModal() {
+    if (!buildRvtExpandedModal.overlay) return;
+    state.ui.isRvtListExpanded = false;
+    buildRvtExpandedModal.overlay.classList.add('is-hidden');
   }
 
   function buildSelectedFeaturesSection() {
