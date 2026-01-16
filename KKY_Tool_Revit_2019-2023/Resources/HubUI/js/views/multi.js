@@ -6,6 +6,7 @@ import { createRvtTable, renderRvtRows, getRvtName } from './rvtTable.js';
 const FEATURE_META = {
   connector: { label: '커넥터 진단', desc: 'Parameter 값 연속성 검토', requiresSharedParams: false },
   guid: { label: 'GUID 검토', desc: '공유 파라미터 GUID 불일치 검토', requiresSharedParams: true },
+  familylink: { label: '패밀리 공유파라미터 연동 검토(다중 RVT)', desc: '복합 패밀리의 하위 패밀리 파라미터 연동 상태를 검토합니다.', requiresSharedParams: false },
   points: { label: 'Point 추출', desc: 'Project/Survey Point 좌표 추출', requiresSharedParams: false }
 };
 const FEATURE_KEYS = Object.keys(FEATURE_META);
@@ -36,6 +37,7 @@ export function renderMulti(root) {
     features: {
       connector: createFeatureState({ tol: 1.0, unit: 'inch', param: 'Comments' }),
       guid: createFeatureState({ includeFamily: false, includeAnnotation: false }),
+      familylink: createFeatureState({ targetsText: '', targets: [] }),
       points: createFeatureState({ unit: 'ft' })
     },
     results: {},
@@ -88,6 +90,7 @@ export function renderMulti(root) {
   group1.section.append(buildToggleRow('connector', buildConnectorConfig()));
   group2.section.append(buildPmsWorkflowRow());
   group2.section.append(buildToggleRow('guid', buildGuidConfig()));
+  group3.section.append(buildToggleRow('familylink', buildFamilyLinkConfig()));
   group3.section.append(buildToggleRow('points', buildPointsConfig()));
 
   const rightFilter = buildGroupFilter();
@@ -432,6 +435,18 @@ export function renderMulti(root) {
     });
     panel.append(unit.field);
     return { panel, controls: { unit } };
+  }
+
+  function buildFamilyLinkConfig() {
+    const panel = div('multi-config');
+    const targets = makeField('대상 파라미터 (이름|GUID)', 'familylinkTargets', '예: ParamA|11111111-1111-1111-1111-111111111111', 'textarea');
+    targets.input.value = state.features.familylink.configDraft.targetsText;
+    targets.input.addEventListener('change', () => {
+      state.features.familylink.configDraft.targetsText = targets.input.value;
+      markFeatureDirty('familylink');
+    });
+    panel.append(targets.field);
+    return { panel, controls: { targets } };
   }
 
   function buildRvtSection() {
@@ -877,6 +892,7 @@ export function renderMulti(root) {
       features: {
         connector: buildCommittedFeature('connector'),
         guid: buildCommittedFeature('guid'),
+        familylink: buildCommittedFeature('familylink'),
         points: buildCommittedFeature('points')
       }
     };
@@ -1010,6 +1026,7 @@ export function renderMulti(root) {
     });
     syncFeatureRow('connector');
     syncFeatureRow('guid');
+    syncFeatureRow('familylink');
     syncFeatureRow('points');
     updateRunActionLabel();
     post('hub:multi-clear', {});
@@ -1090,6 +1107,12 @@ export function renderMulti(root) {
         '공유 파라미터 GUID 일치 여부를 검토합니다.'
       ];
     }
+    if (key === 'familylink') {
+      return [
+        '대상 파라미터를 “이름|GUID” 형식으로 줄바꿈해 입력합니다.',
+        'GUID는 공유 파라미터 텍스트에 등록된 값과 일치해야 합니다.'
+      ];
+    }
     if (key === 'points') {
       return [
         '좌표 추출 단위를 선택합니다.',
@@ -1120,6 +1143,21 @@ export function renderMulti(root) {
 
   function deepCopy(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function parseFamilyLinkTargets(text) {
+    const lines = String(text || '').split(/\r?\n/);
+    const targets = [];
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      const parts = trimmed.split('|');
+      const name = (parts[0] || '').trim();
+      const guid = (parts[1] || '').trim();
+      if (!name || !guid) return;
+      targets.push({ name, guid });
+    });
+    return targets;
   }
 
   function renderSelectedFeatures() {
@@ -1389,6 +1427,9 @@ export function renderMulti(root) {
   }
 
   function commitConfig(target) {
+    if (state.ui.activeFeatureKey === 'familylink') {
+      target.configDraft.targets = parseFamilyLinkTargets(target.configDraft.targetsText);
+    }
     target.configCommitted = deepCopy(target.configDraft);
     target.applied = true;
     target.dirty = false;
@@ -1435,6 +1476,9 @@ export function renderMulti(root) {
       const draft = state.features.guid.configDraft;
       controls.includeFamily.input.checked = draft.includeFamily;
       controls.includeAnno.input.checked = draft.includeAnnotation;
+    } else if (key === 'familylink') {
+      const draft = state.features.familylink.configDraft;
+      controls.targets.input.value = draft.targetsText;
     } else if (key === 'points') {
       const draft = state.features.points.configDraft;
       controls.unit.select.value = draft.unit;

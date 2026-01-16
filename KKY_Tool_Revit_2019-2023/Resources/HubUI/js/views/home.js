@@ -20,7 +20,7 @@ export function renderHome(root) {
             'active-menu',
             [
                 '중복 객체 검토: 현재 열린 문서에서 중복 요소/패밀리 점검',
-                '패밀리 공유파라미터 연동 검토: 네스티드 패밀리 공유 파라미터 연동 상태 점검'
+                '패밀리 공유파라미터 추가 및 연동(활성 문서): 공유 파라미터 추가/연동 수행'
             ]
         ),
         buildCard(
@@ -30,6 +30,7 @@ export function renderHome(root) {
             [
                 '커넥터 진단(BQC용): 파라미터 값 연속성/연결 관계 점검',
                 'GUID 검토: 공유 파라미터 GUID 불일치 확인',
+                '패밀리 공유파라미터 연동 검토(다중 RVT): 복합 패밀리 연동 상태 점검',
                 'Point 추출: Project/Survey 포인트 좌표 추출'
             ]
         )
