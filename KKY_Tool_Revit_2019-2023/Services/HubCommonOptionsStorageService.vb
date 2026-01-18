@@ -42,7 +42,7 @@ Namespace Services
             If options Is Nothing Then Return False
             Try
                 Dim path = GetOptionsPath()
-                Dim dir = Path.GetDirectoryName(path)
+                Dim dir = IO.Path.GetDirectoryName(path)
                 If Not String.IsNullOrWhiteSpace(dir) AndAlso Not Directory.Exists(dir) Then
                     Directory.CreateDirectory(dir)
                 End If

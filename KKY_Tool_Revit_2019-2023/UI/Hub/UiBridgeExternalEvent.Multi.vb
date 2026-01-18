@@ -509,30 +509,7 @@ NextItem:
             End If
         End Sub
 
-        Private Sub ExportParamProp(doAutoFit As Boolean)
-            If _multiParamDetails Is Nothing OrElse _multiParamDetails.Count = 0 Then
-                SendToWeb("hub:multi-exported", New With {.ok = False, .message = "파라미터 연동 결과가 없습니다."})
-                Return
-            End If
-            Dim headers = New List(Of String) From {"Type", "Family", "Detail"}
-            Dim rows As New List(Of Dictionary(Of String, Object))()
-            For Each r In _multiParamDetails
-                Dim row As New Dictionary(Of String, Object) From {
-                    {"Type", r.Kind},
-                    {"Family", r.Family},
-                    {"Detail", r.Detail}
-                }
-                rows.Add(row)
-            Next
-            Dim table = BuildTableFromRows(headers, rows)
-            If Not ValidateSchema(table, headers) Then Throw New InvalidOperationException("스키마 검증 실패: ParamProp")
-            Dim saved = ExcelCore.PickAndSaveXlsx("ParamProp", table, $"ParamProp_{Date.Now:yyyyMMdd_HHmm}.xlsx", doAutoFit, "hub:multi-progress")
-            If String.IsNullOrWhiteSpace(saved) Then
-                SendToWeb("hub:multi-exported", New With {.ok = False, .message = "엑셀 저장이 취소되었습니다."})
-            Else
-                SendToWeb("hub:multi-exported", New With {.ok = True, .path = saved})
-            End If
-        End Sub
+
 
         Private Sub ExportFamilyLink(doAutoFit As Boolean)
             Dim rows = If(_multiFamilyLinkRows, New List(Of FamilyLinkAuditRow)())
@@ -718,24 +695,27 @@ NextItem:
         End Sub
 
         Private Function BuildMultiSummaryPayload() As Object
-            Dim items = If(_multiRunItems, New List(Of MultiRunItem)())
-            Dim total = If(_multiTotal, items.Count)
-            Dim success = items.Count(Function(x) String.Equals(x.Status, "success", StringComparison.OrdinalIgnoreCase))
-            Dim skipped = items.Count(Function(x) String.Equals(x.Status, "skipped", StringComparison.OrdinalIgnoreCase))
-            Dim failed = items.Count(Function(x) String.Equals(x.Status, "failed", StringComparison.OrdinalIgnoreCase))
+            Dim items As List(Of MultiRunItem) = If(_multiRunItems, New List(Of MultiRunItem)())
+
+            Dim total As Integer = If(_multiTotal > 0, _multiTotal, items.Count)
+
+            Dim success As Integer = items.Where(Function(x) String.Equals(x.Status, "success", StringComparison.OrdinalIgnoreCase)).Count()
+            Dim skipped As Integer = items.Where(Function(x) String.Equals(x.Status, "skipped", StringComparison.OrdinalIgnoreCase)).Count()
+            Dim failed As Integer = items.Where(Function(x) String.Equals(x.Status, "failed", StringComparison.OrdinalIgnoreCase)).Count()
+
             Return New With {
-                .ok = True,
-                .mode = "multiRvt",
-                .featureId = "multi_rvt_batch",
-                .title = "다중 RVT 검토",
-                .finishedAt = Date.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
-                .total = total,
-                .success = success,
-                .skipped = skipped,
-                .failed = failed,
-                .canceled = False,
-                .items = items
-            }
+        .ok = True,
+        .mode = "multiRvt",
+        .featureId = "multi_rvt_batch",
+        .title = "다중 RVT 검토",
+        .finishedAt = Date.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+        .total = total,
+        .success = success,
+        .skipped = skipped,
+        .failed = failed,
+        .canceled = False,
+        .items = items
+    }
         End Function
 
         Private Sub ReportMultiProgress(percent As Double, message As String, detail As String)
