@@ -137,6 +137,7 @@ Namespace UI.Hub
             map.Add("paramprop:run", "HandleSharedParamRun")
             map.Add("sharedparam:run", "HandleSharedParamRun")
             map.Add("sharedparam:list", "HandleSharedParamList")
+            map.Add("sharedparam:status", "HandleSharedParamStatus")
             map.Add("sharedparam:export-excel", "HandleSharedParamExport")
             ' 공통 Excel 동작
             map.Add("excel:open", "HandleExcelOpen")
@@ -147,6 +148,7 @@ Namespace UI.Hub
             map.Add("segmentpms:load-extract", "HandleSegmentPmsLoadExtract")
             map.Add("segmentpms:save-extract", "HandleSegmentPmsSaveExtract")
             map.Add("segmentpms:register-pms", "HandleSegmentPmsRegisterPms")
+            map.Add("segmentpms:pms-template", "HandleSegmentPmsExportTemplate")
             map.Add("segmentpms:prepare-mapping", "HandleSegmentPmsPrepareMapping")
             map.Add("segmentpms:run", "HandleSegmentPmsRun")
             map.Add("segmentpms:save-result", "HandleSegmentPmsSaveResult")
@@ -165,6 +167,8 @@ Namespace UI.Hub
             map.Add("hub:multi-run", "HandleMultiRun")
             map.Add("hub:multi-export", "HandleMultiExport")
             map.Add("hub:multi-clear", "HandleMultiClear")
+            map.Add("commonoptions:get", "HandleCommonOptionsGet")
+            map.Add("commonoptions:save", "HandleCommonOptionsSave")
 
             Dim methodName As String = Nothing
             If Not map.TryGetValue(name, methodName) Then

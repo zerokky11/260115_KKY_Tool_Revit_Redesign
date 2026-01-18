@@ -15,15 +15,30 @@ Namespace UI.Hub
         ' === sharedparam:list ===
         Private Sub HandleSharedParamList(app As UIApplication, payload As Object)
             Try
+                Dim status = SharedParameterStatusService.GetStatus(app)
+                If status Is Nothing OrElse Not String.Equals(status.Status, "ok", StringComparison.OrdinalIgnoreCase) Then
+                    Dim msg = If(String.IsNullOrWhiteSpace(status?.WarningMessage), "Shared Parameter 파일 상태가 올바르지 않습니다.", status.WarningMessage)
+                    SendToWeb("sharedparam:list", New With {.ok = False, .message = msg, .items = New List(Of Object)()})
+                    Return
+                End If
+
                 Dim res = ParamPropagateService.GetSharedParameterDefinitions(app)
+                Dim items = SharedParameterStatusService.ListDefinitions(app).Select(Function(d) New With {
+                    .name = d.Name,
+                    .guid = d.Guid,
+                    .groupName = d.GroupName,
+                    .dataTypeToken = d.DataTypeToken
+                }).ToList()
+
                 Dim shaped As Object = New With {
                     .ok = res IsNot Nothing AndAlso res.Ok,
                     .message = If(res Is Nothing, Nothing, res.Message),
-                    .definitions = If(res?.Definitions, New List(Of ParamPropagateService.SharedParamDefinitionDto)()).Select(Function(d) New With {
-                        .groupName = d.GroupName,
-                        .name = d.Name,
-                        .paramType = d.ParamType,
-                        .visible = d.Visible
+                    .items = items,
+                    .definitions = items.Select(Function(d) New With {
+                        .groupName = d.groupName,
+                        .name = d.name,
+                        .paramType = d.dataTypeToken,
+                        .visible = True
                     }).ToList(),
                     .targetGroups = If(res?.TargetGroups, New List(Of ParamPropagateService.ParameterGroupOption)()).Select(Function(g) New With {
                         .id = g.Id,
@@ -32,14 +47,58 @@ Namespace UI.Hub
                 }
                 SendToWeb("sharedparam:list", shaped)
             Catch ex As Exception
-                SendToWeb("sharedparam:list", New With {.ok = False, .message = ex.Message})
+                SendToWeb("sharedparam:list", New With {.ok = False, .message = ex.Message, .items = New List(Of Object)()})
                 SendToWeb("revit:error", New With {.message = ex.Message})
+            End Try
+        End Sub
+
+        ' === sharedparam:status ===
+        Private Sub HandleSharedParamStatus(app As UIApplication, payload As Object)
+            Try
+                Dim status = SharedParameterStatusService.GetStatus(app)
+                Dim shaped As Object = New With {
+                    .path = status.Path,
+                    .isSet = status.IsSet,
+                    .existsOnDisk = status.ExistsOnDisk,
+                    .canOpen = status.CanOpen,
+                    .status = status.Status,
+                    .statusLabel = status.StatusLabel,
+                    .warning = status.WarningMessage,
+                    .errorMessage = status.ErrorMessage
+                }
+                SendToWeb("sharedparam:status", shaped)
+            Catch ex As Exception
+                SendToWeb("sharedparam:status", New With {
+                    .status = "error",
+                    .statusLabel = "조회 실패",
+                    .warning = "Shared Parameter 상태 조회에 실패했습니다.",
+                    .errorMessage = ex.Message
+                })
             End Try
         End Sub
 
         ' === sharedparam:run / paramprop:run ===
         Private Sub HandleSharedParamRun(app As UIApplication, payload As Object)
             Try
+                Dim sharedStatus = SharedParameterStatusService.GetStatus(app)
+                If sharedStatus Is Nothing OrElse Not String.Equals(sharedStatus.Status, "ok", StringComparison.OrdinalIgnoreCase) Then
+                    Dim msg = If(String.IsNullOrWhiteSpace(sharedStatus?.WarningMessage), "Shared Parameter 파일 상태가 올바르지 않습니다.", sharedStatus.WarningMessage)
+                    SendToWeb("sharedparam:done", New With {.ok = False, .status = "blocked", .message = msg})
+                    SendToWeb("paramprop:done", New With {.ok = False, .status = "blocked", .message = msg})
+                    SendToWeb("revit:error", New With {.message = "공유 파라미터 연동 실패: " & msg})
+                    SendToWeb("sharedparam:status", New With {
+                        .path = sharedStatus?.Path,
+                        .isSet = sharedStatus?.IsSet,
+                        .existsOnDisk = sharedStatus?.ExistsOnDisk,
+                        .canOpen = sharedStatus?.CanOpen,
+                        .status = sharedStatus?.Status,
+                        .statusLabel = sharedStatus?.StatusLabel,
+                        .warning = sharedStatus?.WarningMessage,
+                        .errorMessage = sharedStatus?.ErrorMessage
+                    })
+                    Return
+                End If
+
                 Dim req As ParamPropagateService.SharedParamRunRequest = ParamPropagateService.SharedParamRunRequest.FromPayload(payload)
                 Dim res = ParamPropagateService.Run(app, req, AddressOf ReportParamPropProgress)
                 _lastParamResult = res

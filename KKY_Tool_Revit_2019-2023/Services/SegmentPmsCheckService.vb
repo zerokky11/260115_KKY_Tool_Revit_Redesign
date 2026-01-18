@@ -517,6 +517,72 @@ Namespace Services
             Return res
         End Function
 
+        Public Shared Sub ExportPmsTemplateXlsx(outPath As String, preferredUnit As String)
+            If String.IsNullOrWhiteSpace(outPath) Then
+                Throw New ArgumentException("저장 경로가 비어 있습니다.", NameOf(outPath))
+            End If
+
+            Dim unitLabel As String = If(String.IsNullOrWhiteSpace(preferredUnit), "mm", preferredUnit).ToLowerInvariant()
+            Dim useInch As Boolean = unitLabel.IndexOf("in", StringComparison.OrdinalIgnoreCase) >= 0
+            Dim ndHeader As String = If(useInch, "ND_in", "ND_mm")
+            Dim idHeader As String = If(useInch, "ID_in", "ID_mm")
+            Dim odHeader As String = If(useInch, "OD_in", "OD_mm")
+            Dim headers As New List(Of String) From {"CLASS", "Segment", ndHeader, idHeader, odHeader}
+
+            Using wb As New XSSFWorkbook()
+                Dim headerStyle As ICellStyle = wb.CreateCellStyle()
+                Dim headerFont As IFont = wb.CreateFont()
+                headerFont.IsBold = True
+                headerStyle.SetFont(headerFont)
+
+                Dim sheet = wb.CreateSheet("PMS_Template")
+                Dim headerRow = sheet.CreateRow(0)
+                For i As Integer = 0 To headers.Count - 1
+                    Dim cell = headerRow.CreateCell(i)
+                    cell.SetCellValue(headers(i))
+                    cell.CellStyle = headerStyle
+                Next
+
+                Dim samples As New List(Of Object()) From {
+                    New Object() {"HVAC", "SEG-100", If(useInch, 4.0R, 100.0R), If(useInch, 3.75R, 95.0R), If(useInch, 4.5R, 108.0R)},
+                    New Object() {"HVAC", "SEG-150", If(useInch, 6.0R, 150.0R), If(useInch, 5.5R, 140.0R), If(useInch, 6.5R, 165.0R)},
+                    New Object() {"Plumbing", "SEG-200", If(useInch, 8.0R, 200.0R), If(useInch, 7.5R, 190.0R), If(useInch, 8.5R, 214.0R)}
+                }
+
+                For r As Integer = 0 To samples.Count - 1
+                    Dim row = sheet.CreateRow(r + 1)
+                    Dim values = samples(r)
+                    For c As Integer = 0 To values.Length - 1
+                        Dim cell = row.CreateCell(c)
+                        Dim val = values(c)
+                        If TypeOf val Is Double OrElse TypeOf val Is Single OrElse TypeOf val Is Decimal Then
+                            cell.SetCellValue(Convert.ToDouble(val))
+                        Else
+                            cell.SetCellValue(If(val Is Nothing, String.Empty, val.ToString()))
+                        End If
+                    Next
+                Next
+
+                Dim readme = wb.CreateSheet("README")
+                Dim notes As New List(Of String) From {
+                    "PMS 등록용 샘플 양식입니다.",
+                    "필수 헤더: CLASS, Segment, " & ndHeader & ", " & idHeader & ", " & odHeader,
+                    "단위: " & If(useInch, "inch", "mm"),
+                    "Segment 컬럼은 PMS Segment Key 값입니다.",
+                    "값이 비어있는 행은 자동으로 무시됩니다.",
+                    "헤더명이 변경되면 PMS 등록에 실패할 수 있습니다."
+                }
+                For i As Integer = 0 To notes.Count - 1
+                    Dim row = readme.CreateRow(i)
+                    row.CreateCell(0).SetCellValue(notes(i))
+                Next
+
+                Using fs As New FileStream(outPath, FileMode.Create, FileAccess.Write, FileShare.None)
+                    wb.Write(fs)
+                End Using
+            End Using
+        End Sub
+
         ' ---------------------------
         ' Suggestion / Compare
         ' ---------------------------

@@ -127,8 +127,14 @@
 		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\ExportPointsService.vb">
 			<Link>Services\ExportPointsService.vb</Link>
 		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\HubCommonOptionsStorageService.vb">
+			<Link>Services\HubCommonOptionsStorageService.vb</Link>
+		</Compile>
 		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\ParamPropagateService.vb">
 			<Link>Services\ParamPropagateService.vb</Link>
+		</Compile>
+		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\SharedParameterStatusService.vb">
+			<Link>Services\SharedParameterStatusService.vb</Link>
 		</Compile>
 		<Compile Include="..\KKY_Tool_Revit_2019-2023\Services\SegmentPmsCheckService.vb">
 			<Link>Services\SegmentPmsCheckService.vb</Link>

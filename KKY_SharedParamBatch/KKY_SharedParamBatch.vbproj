@@ -1,0 +1,149 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop" ToolsVersion="Current">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<OutputType>Library</OutputType>
+
+		<UseWPF>false</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<!-- 메인 프로젝트와 동일 Namespace 유지 -->
+		<RootNamespace>KKY_Tool_Revit</RootNamespace>
+		<AssemblyName>KKY_SharedParamBatch</AssemblyName>
+
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<OptionStrict>Off</OptionStrict>
+		<OptionInfer>On</OptionInfer>
+		<Deterministic>false</Deterministic>
+
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+		<!-- 기본 Item 자동 포함 끔 -->
+		<EnableDefaultItems>false</EnableDefaultItems>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+		<Platforms>AnyCPU;x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+
+		<!-- Addins 루트: %ProgramData% 폴백 포함 -->
+		<ProgramDataPath>$([System.Environment]::GetEnvironmentVariable('ProgramData'))</ProgramDataPath>
+		<ProgramDataPath Condition="'$(ProgramDataPath)'==''">C:\ProgramData</ProgramDataPath>
+		<AddinRoot>$(ProgramDataPath)\Autodesk\Revit\Addins</AddinRoot>
+
+		<!-- 기본 연도/출력 -->
+		<RevitYear Condition="'$(RevitYear)'==''">2019</RevitYear>
+		<BaseOutputPath>bin\Rvt$(RevitYear)\</BaseOutputPath>
+		<OutputPath>$(BaseOutputPath)</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+		<!-- VB 조건부 컴파일 -->
+		<DefineConstants>REVIT$(RevitYear)=1</DefineConstants>
+	</PropertyGroup>
+
+	<!-- ✅ AnyCPU로 빌드해도 실제 타겟은 x64로 고정 -->
+	<PropertyGroup Condition="'$(Platform)'=='AnyCPU'">
+		<PlatformTarget>x64</PlatformTarget>
+	</PropertyGroup>
+
+	<!-- ✅ .NET Framework Reference Assemblies(WinForms 포함) 보장 -->
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+	</ItemGroup>
+
+	<!-- NuGet (지금 기능에 필수는 아니지만 템플릿 유지) -->
+	<ItemGroup>
+		<PackageReference Include="NPOI" Version="2.6.1" />
+	</ItemGroup>
+
+	<!-- ✅ 공통 API 경로 계산 (repo 내 Compile\{연도}addin + Revit 설치폴더 fallback) -->
+	<PropertyGroup>
+		<RevitApiDirCandidate0>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\Compile\$(RevitYear)addin'))</RevitApiDirCandidate0>
+		<RevitApiDirCandidate1>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate1>
+		<RevitApiDirCandidate2>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\Compile\$(RevitYear)addin'))</RevitApiDirCandidate2>
+
+		<RevitApiDir Condition="Exists('$(RevitApiDirCandidate0)\RevitAPI.dll')">$(RevitApiDirCandidate0)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate1)\RevitAPI.dll')">$(RevitApiDirCandidate1)</RevitApiDir>
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitApiDirCandidate2)\RevitAPI.dll')">$(RevitApiDirCandidate2)</RevitApiDir>
+
+		<!-- ✅ FIX: GetFolderPath() 쓰지 말고 환경변수로 Program Files 경로 확보 -->
+		<ProgramFilesX64>$([System.Environment]::GetEnvironmentVariable('ProgramW6432'))</ProgramFilesX64>
+		<ProgramFilesX64 Condition="'$(ProgramFilesX64)'==''">$([System.Environment]::GetEnvironmentVariable('ProgramFiles'))</ProgramFilesX64>
+		<ProgramFilesX64 Condition="'$(ProgramFilesX64)'==''">C:\Program Files</ProgramFilesX64>
+
+		<RevitInstallDirCandidate0>$(ProgramFilesX64)\Autodesk\Revit $(RevitYear)</RevitInstallDirCandidate0>
+
+		<RevitApiDir Condition="'$(RevitApiDir)'=='' and Exists('$(RevitInstallDirCandidate0)\RevitAPI.dll')">$(RevitInstallDirCandidate0)</RevitApiDir>
+	</PropertyGroup>
+
+	<Target Name="CheckRevitApiDir" BeforeTargets="ResolveReferences">
+		<Message Text="RevitYear=$(RevitYear), RevitApiDir=$(RevitApiDir)" Importance="high" />
+		<Error Condition="'$(RevitApiDir)'==''"
+			   Text="Revit API folder not found. Put RevitAPI.dll &amp; RevitAPIUI.dll under (one of) Compile\$(RevitYear)addin relative to this project folder, or install Revit at the default location." />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPI.dll')"
+			   Text="RevitAPI.dll not found: $(RevitApiDir)\RevitAPI.dll" />
+		<Error Condition="!Exists('$(RevitApiDir)\RevitAPIUI.dll')"
+			   Text="RevitAPIUI.dll not found: $(RevitApiDir)\RevitAPIUI.dll" />
+	</Target>
+
+	<!-- 불필요 기본항목 제거 -->
+	<ItemGroup>
+		<Compile Remove="**\*.vb" />
+		<Page Remove="**\*.xaml" />
+	</ItemGroup>
+
+	<!-- Revit API 참조 -->
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>$(RevitApiDir)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(RevitApiDir)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- WinForms 기본 참조 -->
+	<ItemGroup>
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Drawing" />
+	</ItemGroup>
+
+	<!-- 코드 포함 -->
+	<ItemGroup>
+		<Compile Include="Cmd_BatchAddSharedParameter.vb" />
+	</ItemGroup>
+
+	<!-- ✅ 빌드마다 .addin 생성 -->
+	<Target Name="CreateAddin" AfterTargets="Build">
+		<PropertyGroup>
+			<AddinOutDir>$(AddinRoot)\$(RevitYear)</AddinOutDir>
+			<BuiltDll>$(OutputPath)$(AssemblyName).dll</BuiltDll>
+			<BuiltDllFull>$([System.IO.Path]::GetFullPath('$(BuiltDll)'))</BuiltDllFull>
+			<AddinFile>$(AddinOutDir)\KKY_SharedParamBatch.addin</AddinFile>
+
+			<AddinFullClassName>KKY_Tool_Revit.Cmd_BatchAddSharedParameter</AddinFullClassName>
+			<AddinIdGuid>8F4C1A2D-5C3A-4B0A-9D6E-3A3F7F4E2C1B</AddinIdGuid>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(AddinOutDir)" />
+
+		<ItemGroup>
+			<AddinXml Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<AddinXml Include="&lt;RevitAddIns&gt;" />
+			<AddinXml Include="  &lt;AddIn Type=&quot;Command&quot;&gt;" />
+			<AddinXml Include="    &lt;Name&gt;KKY_SharedParamBatch&lt;/Name&gt;" />
+			<AddinXml Include="    &lt;Assembly&gt;$(BuiltDllFull)&lt;/Assembly&gt;" />
+			<AddinXml Include="    &lt;AddInId&gt;$(AddinIdGuid)&lt;/AddInId&gt;" />
+			<AddinXml Include="    &lt;FullClassName&gt;$(AddinFullClassName)&lt;/FullClassName&gt;" />
+			<AddinXml Include="    &lt;VendorId&gt;KKY&lt;/VendorId&gt;" />
+			<AddinXml Include="    &lt;VendorDescription&gt;Shared Parameter Batch Binder (Prototype)&lt;/VendorDescription&gt;" />
+			<AddinXml Include="  &lt;/AddIn&gt;" />
+			<AddinXml Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(AddinFile)" Lines="@(AddinXml)" Overwrite="true" />
+		<Message Text="Created: $(AddinFile)" Importance="high" />
+	</Target>
+
+</Project>

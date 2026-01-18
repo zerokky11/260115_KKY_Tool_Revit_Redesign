@@ -123,7 +123,9 @@
 		<Compile Include="Services\DuplicateAnalysisService.vb" />
 		<Compile Include="Services\ConnectorDiagnosticsService.vb" />
 		<Compile Include="Services\ExportPointsService.vb" />
+		<Compile Include="Services\HubCommonOptionsStorageService.vb" />
 		<Compile Include="Services\ParamPropagateService.vb" />
+		<Compile Include="Services\SharedParameterStatusService.vb" />
 		<Compile Include="Services\GuidAuditService.vb" />
 		<Compile Include="Services\SegmentPmsCheckService.vb" />
 		<Compile Include="Services\FamilyLinkAuditService.vb" />

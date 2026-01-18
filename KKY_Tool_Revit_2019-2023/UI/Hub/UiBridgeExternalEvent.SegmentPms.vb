@@ -408,6 +408,30 @@ Namespace UI.Hub
             End Using
         End Sub
 
+        Private Sub HandleSegmentPmsExportTemplate(app As UIApplication, payload As Object)
+            Dim unitPref As String = If(String.IsNullOrWhiteSpace(_pmsUnitPref), "mm", _pmsUnitPref)
+            Dim pd = ParsePayloadDict(payload)
+            If pd.ContainsKey("unit") Then
+                unitPref = If(pd("unit"), unitPref).ToString()
+            End If
+
+            Using dlg As New SaveFileDialog()
+                dlg.Filter = "Excel (*.xlsx)|*.xlsx"
+                dlg.FileName = "PMS_Template.xlsx"
+                dlg.AddExtension = True
+                If dlg.ShowDialog() <> DialogResult.OK Then
+                    Return
+                End If
+
+                Try
+                    SegmentPmsCheckService.ExportPmsTemplateXlsx(dlg.FileName, unitPref)
+                    SendToWeb("segmentpms:pms-template-saved", New With {.path = dlg.FileName})
+                Catch ex As Exception
+                    SendToWeb("segmentpms:error", New With {.message = ex.Message})
+                End Try
+            End Using
+        End Sub
+
         Private Sub HandleSegmentPmsPrepareMapping(app As UIApplication, payload As Object)
             If _extractData Is Nothing Then
                 SendToWeb("segmentpms:error", New With {.message = "추출 데이터를 먼저 불러오세요."})

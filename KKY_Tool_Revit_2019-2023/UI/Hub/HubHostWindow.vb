@@ -76,8 +76,13 @@ Namespace UI.Hub
         Public Sub New(uiApp As UIApplication)
             _uiApp = uiApp
             Title = BaseTitle
-            Width = 1280
-            Height = 800
+            Dim workArea = System.Windows.SystemParameters.WorkArea
+            Dim desiredWidth As Double = 1400
+            Dim desiredHeight As Double = 900
+            Width = Math.Min(desiredWidth, workArea.Width * 0.93)
+            Height = Math.Min(desiredHeight, workArea.Height * 0.93)
+            MinWidth = Math.Min(1100, Width)
+            MinHeight = Math.Min(720, Height)
             WindowStartupLocation = WindowStartupLocation.CenterScreen
             Content = _web
 

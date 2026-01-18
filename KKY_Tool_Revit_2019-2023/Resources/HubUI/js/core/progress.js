@@ -9,10 +9,15 @@ let detailEl = null;
 let metaEl = null;
 let pctEl = null;
 let barFillEl = null;
+let actionsEl = null;
+let cancelBtn = null;
+let skipBtn = null;
+let statusEl = null;
 let lastUpdate = 0;
 let pendingTimer = null;
 let pendingData = null;
 let isVisible = false;
+let actionHandlers = { onCancel: null, onSkip: null };
 
 function ensure() {
     if (root && root.isConnected) return;
@@ -32,7 +37,27 @@ function ensure() {
 
     pctEl = document.createElement('div'); pctEl.className = 'segmentpms-progress-pct';
 
-    card.append(titleEl, detailEl, metaEl, bar, pctEl);
+    actionsEl = document.createElement('div');
+    actionsEl.className = 'segmentpms-progress-actions';
+    statusEl = document.createElement('div');
+    statusEl.className = 'segmentpms-progress-status';
+    cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn--danger';
+    cancelBtn.textContent = '취소';
+    skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'btn btn--secondary';
+    skipBtn.textContent = '다음 파일로';
+    cancelBtn.addEventListener('click', () => {
+        if (actionHandlers.onCancel) actionHandlers.onCancel();
+    });
+    skipBtn.addEventListener('click', () => {
+        if (actionHandlers.onSkip) actionHandlers.onSkip();
+    });
+    actionsEl.append(statusEl, skipBtn, cancelBtn);
+
+    card.append(titleEl, detailEl, metaEl, bar, pctEl, actionsEl);
     root.append(card);
     document.body.append(root);
 }
@@ -79,6 +104,7 @@ export const ProgressDialog = {
         if (titleEl) titleEl.textContent = title || '작업 진행 중';
         if (detailEl) detailEl.textContent = subtitle || '';
         if (metaEl) metaEl.textContent = '';
+        if (statusEl) statusEl.textContent = '';
     },
     update(percent, subtitle, detail) {
         throttledUpdate({ percent, subtitle: subtitle ?? '', detail: detail ?? '' });
@@ -91,7 +117,30 @@ export const ProgressDialog = {
         }
         pendingData = null;
         if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+        if (statusEl) statusEl.textContent = '';
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (skipBtn) skipBtn.disabled = false;
+        actionHandlers = { onCancel: null, onSkip: null };
     }
+};
+
+ProgressDialog.setActions = function setActions({ onCancel, onSkip, cancelLabel, skipLabel } = {}) {
+    ensure();
+    actionHandlers = { onCancel: onCancel || null, onSkip: onSkip || null };
+    if (cancelBtn) {
+        cancelBtn.textContent = cancelLabel || '취소';
+        cancelBtn.style.display = actionHandlers.onCancel ? 'inline-flex' : 'none';
+    }
+    if (skipBtn) {
+        skipBtn.textContent = skipLabel || '다음 파일로';
+        skipBtn.style.display = actionHandlers.onSkip ? 'inline-flex' : 'none';
+    }
+};
+
+ProgressDialog.setActionState = function setActionState({ statusText, cancelDisabled, skipDisabled } = {}) {
+    if (statusEl && typeof statusText === 'string') statusEl.textContent = statusText;
+    if (cancelBtn && typeof cancelDisabled === 'boolean') cancelBtn.disabled = cancelDisabled;
+    if (skipBtn && typeof skipDisabled === 'boolean') skipBtn.disabled = skipDisabled;
 };
 
 export default ProgressDialog;
