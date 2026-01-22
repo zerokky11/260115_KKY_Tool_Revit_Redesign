@@ -1,11 +1,12 @@
 ﻿' Cmd_BatchAddSharedParameter.vb
 ' Revit 2019 / .NET Framework 4.8
 ' Prototype:
-' - Shared Parameter source: current Revit Application.SharedParametersFilename (active document's txt)
+' - Shared Parameter source: current Revit Application.SharedParametersFilename
 ' - Select 1+ shared parameters, add to "Selected list"
 ' - Each parameter has its own settings dialog
-' - Categories UI: TreeView with sub-categories (+)
-' - FIX: Store categories as (Id + Path) and resolve by Path per target RVT to avoid "same-name subcategory" confusion / doc-dependent ids
+' - Categories UI: TreeView with sub-categories (+) like Revit UI
+' - FIX(2026-01): show non-bindable leaf categories (e.g., Stairs\Supports), allow selecting them,
+'                 attempt binding anyway, and post-check log CAT_DROPPED_BY_REVIT.
 ' - Workshared: open with CloseAllWorksets, then SynchronizeWithCentral with comment
 ' - Non-workshared: Save()
 
@@ -60,10 +61,10 @@ Namespace Global.KKY_Tool_Revit
                 Return Result.Cancelled
             End If
 
-            ' Category tree (with Path)
+            ' Category tree (with Path; include non-bindable leaves too)
             Dim categoryTreeRoots As List(Of CategoryTreeItem) = BuildCategoryTree(baseDoc)
             If categoryTreeRoots.Count = 0 Then
-                TaskDialog.Show("Shared Parameter Batch", "바인딩 가능한 카테고리를 찾지 못했습니다.")
+                TaskDialog.Show("Shared Parameter Batch", "카테고리를 찾지 못했습니다.")
                 Return Result.Cancelled
             End If
 
@@ -88,6 +89,7 @@ Namespace Global.KKY_Tool_Revit
             Dim okCount As Integer = 0
             Dim failCount As Integer = 0
             Dim skipCount As Integer = 0
+            Dim warnCount As Integer = 0
 
             Dim originalSpFile As String = app.SharedParametersFilename
 
@@ -175,6 +177,7 @@ Namespace Global.KKY_Tool_Revit
                         If Not String.IsNullOrWhiteSpace(perDocNotes) Then
                             Dim lines As String() = perDocNotes.Split(New String() {vbCrLf}, StringSplitOptions.RemoveEmptyEntries)
                             For Each ln As String In lines
+                                warnCount += 1
                                 logs.Add("[WARN] " & rvtPath & " :: " & ln)
                             Next
                         End If
@@ -238,7 +241,8 @@ Namespace Global.KKY_Tool_Revit
                 "완료" & vbCrLf &
                 "- OK: " & okCount & vbCrLf &
                 "- FAIL: " & failCount & vbCrLf &
-                "- SKIP: " & skipCount & vbCrLf & vbCrLf &
+                "- SKIP: " & skipCount & vbCrLf &
+                "- WARN: " & warnCount & vbCrLf & vbCrLf &
                 "로그 파일:" & vbCrLf &
                 logPath
 
@@ -270,7 +274,7 @@ Namespace Global.KKY_Tool_Revit
             Public Property ParamGroup As BuiltInParameterGroup
             Public Property AllowVaryBetweenGroups As Boolean
 
-            ' ✅ FIX: store categories as (Id + Path)
+            ' store categories as (Id + Path)
             Public Property Categories As List(Of CategoryRef)
 
             Public Function CloneDeep() As ParamBindingSettings
@@ -489,10 +493,13 @@ Namespace Global.KKY_Tool_Revit
             Dim req As List(Of CategoryRef) = If(p.Settings.Categories, New List(Of CategoryRef)())
             Dim warn As New List(Of String)()
 
-            Dim catSet As CategorySet = app.Create.NewCategorySet()
+            Dim catSetFull As CategorySet = app.Create.NewCategorySet()
+            Dim catSetBindableOnly As CategorySet = app.Create.NewCategorySet()
 
-            ' track what we actually tried to bind (resolved target doc id -> ref)
-            Dim inserted As New Dictionary(Of Integer, CategoryRef)()
+            Dim attemptedFull As New Dictionary(Of Integer, CategoryRef)()
+            Dim attemptedBindable As New Dictionary(Of Integer, CategoryRef)()
+
+            Dim nonBindableSelected As Integer = 0
 
             For Each cref As CategoryRef In req
                 If cref Is Nothing Then Continue For
@@ -505,42 +512,48 @@ Namespace Global.KKY_Tool_Revit
                     Continue For
                 End If
 
-                Dim bindable As Boolean = False
+                Dim rid As Integer = cat.Id.IntegerValue
+
+                ' read bindable flag (but DO NOT use it to hide/skip anymore)
+                Dim bindableFlag As Boolean = False
                 Try
-                    bindable = cat.AllowsBoundParameters
+                    bindableFlag = cat.AllowsBoundParameters
                 Catch
-                    bindable = False
+                    bindableFlag = False
                 End Try
 
-                If Not bindable Then
-                    warn.Add("CAT_NOT_BINDABLE(AllowsBoundParameters=False): " & DescribeCategoryRef(cref) &
-                             " (ResolvedBy=" & resolveBy & ", ResolvedId=" & cat.Id.IntegerValue & ")")
-                    Continue For
+                ' Always attempt insert into FULL set (so Supports can be attempted)
+                If Not attemptedFull.ContainsKey(rid) Then
+                    Try
+                        catSetFull.Insert(cat)
+                        attemptedFull.Add(rid, cref)
+                    Catch exIns As Exception
+                        warn.Add("CAT_INSERT_FAIL: " & DescribeCategoryRef(cref) & " :: " & exIns.Message)
+                    End Try
                 End If
 
-                Dim rid As Integer = cat.Id.IntegerValue
-                If Not inserted.ContainsKey(rid) Then
-                    catSet.Insert(cat)
-                    inserted.Add(rid, cref)
+                If bindableFlag Then
+                    If Not attemptedBindable.ContainsKey(rid) Then
+                        Try
+                            catSetBindableOnly.Insert(cat)
+                            attemptedBindable.Add(rid, cref)
+                        Catch
+                        End Try
+                    End If
+                Else
+                    nonBindableSelected += 1
+                    warn.Add("CAT_FLAG_NOT_BINDABLE(AllowsBoundParameters=False): " &
+                             DescribeCategoryRef(cref) & " (ResolvedBy=" & resolveBy & ", ResolvedId=" & rid & ")")
                 End If
             Next
 
-            If inserted.Count = 0 Then
-                errLog = "선택된 카테고리가 이 문서에서 유효하지 않음(미존재/바인딩 불가/해석 실패)."
+            If attemptedFull.Count = 0 Then
+                errLog = "선택된 카테고리가 이 문서에서 유효하지 않음(미존재/해석 실패/Insert 실패)."
                 Return False
             End If
 
-            Dim binding As Binding = Nothing
-            If p.Settings.IsInstanceBinding Then
-                binding = app.Create.NewInstanceBinding(catSet)
-            Else
-                binding = app.Create.NewTypeBinding(catSet)
-            End If
-
-            If binding Is Nothing Then
-                errLog = "Binding 생성 실패."
-                Return False
-            End If
+            Dim finalAttempted As Dictionary(Of Integer, CategoryRef) = attemptedFull
+            Dim usedBindableOnly As Boolean = False
 
             Try
                 Using t As New Autodesk.Revit.DB.Transaction(doc, "Bind Shared Parameter: " & p.ParamName)
@@ -548,43 +561,62 @@ Namespace Global.KKY_Tool_Revit
 
                     Dim map As BindingMap = doc.ParameterBindings
 
-                    Dim insertedOk As Boolean = map.Insert(extDef, binding, p.Settings.ParamGroup)
-                    If Not insertedOk Then
-                        insertedOk = map.ReInsert(extDef, binding, p.Settings.ParamGroup)
+                    Dim insertedOk As Boolean = False
+
+                    ' 1) try FULL set
+                    insertedOk = TryInsertOrReinsert(map, extDef, BuildBinding(app, catSetFull, p.Settings.IsInstanceBinding), p.Settings.ParamGroup)
+
+                    ' 2) if it fails and we had non-bindable categories, fallback to bindable-only set
+                    If Not insertedOk AndAlso nonBindableSelected > 0 AndAlso attemptedBindable.Count > 0 Then
+                        warn.Add("BINDING_FALLBACK: full-set insert failed, retry bindable-only set (removed non-bindable candidates).")
+                        insertedOk = TryInsertOrReinsert(map, extDef, BuildBinding(app, catSetBindableOnly, p.Settings.IsInstanceBinding), p.Settings.ParamGroup)
+
+                        If insertedOk Then
+                            finalAttempted = attemptedBindable
+                            usedBindableOnly = True
+                        End If
                     End If
 
                     If Not insertedOk Then
                         t.RollBack()
-                        errLog = "ParameterBindings Insert/ReInsert 실패(이미 존재/제약)."
+                        errLog = "ParameterBindings Insert/ReInsert 실패(이미 존재/제약/카테고리 문제)."
                         Return False
-                    End If
-
-                    ' Vary between groups: only meaningful for Instance
-                    If p.Settings.IsInstanceBinding AndAlso p.Settings.AllowVaryBetweenGroups Then
-                        Try
-                            Dim spe2 As SharedParameterElement = SharedParameterElement.Lookup(doc, extDef.GUID)
-                            If spe2 IsNot Nothing Then
-                                Dim idef As InternalDefinition = TryCast(spe2.GetDefinition(), InternalDefinition)
-                                If idef IsNot Nothing Then
-                                    idef.SetAllowVaryBetweenGroups(doc, True)
-                                End If
-                            End If
-                        Catch exVar As Exception
-                            warn.Add("VARY_SET_FAIL: " & exVar.Message)
-                        End Try
                     End If
 
                     t.Commit()
                 End Using
 
-                ' ✅ Post-check: did Revit silently drop any categories?
+                ' 안정화: 바인딩 후 regenerate (SharedParameterElement 생성 타이밍 보정)
+                Try
+                    doc.Regenerate()
+                Catch
+                End Try
+
+                ' Vary between groups: apply AFTER binding commit
+                If p.Settings IsNot Nothing AndAlso p.Settings.IsInstanceBinding Then
+                    Dim vWarn As String = ""
+                    Dim vOk As Boolean = TrySetAllowVaryBetweenGroups(doc, extDef.GUID, p.Settings.AllowVaryBetweenGroups, vWarn)
+                    If Not vOk AndAlso Not String.IsNullOrWhiteSpace(vWarn) Then
+                        warn.Add(vWarn)
+                    End If
+                End If
+
+                ' Post-check: did Revit silently drop any categories?
                 Dim boundIds As HashSet(Of Integer) = GetBoundCategoryIds(doc, extDef.GUID)
                 If boundIds.Count > 0 Then
-                    For Each kv As KeyValuePair(Of Integer, CategoryRef) In inserted
+                    For Each kv As KeyValuePair(Of Integer, CategoryRef) In finalAttempted
                         If Not boundIds.Contains(kv.Key) Then
                             warn.Add("CAT_DROPPED_BY_REVIT: " & DescribeCategoryRef(kv.Value) & " (ResolvedId=" & kv.Key & ")")
                         End If
                     Next
+
+                    If usedBindableOnly Then
+                        For Each kv As KeyValuePair(Of Integer, CategoryRef) In attemptedFull
+                            If Not finalAttempted.ContainsKey(kv.Key) Then
+                                warn.Add("CAT_SKIPPED_BY_FALLBACK: " & DescribeCategoryRef(kv.Value) & " (ResolvedId=" & kv.Key & ")")
+                            End If
+                        Next
+                    End If
                 End If
 
                 If warn.Count > 0 Then
@@ -601,11 +633,37 @@ Namespace Global.KKY_Tool_Revit
             End Try
         End Function
 
+        Private Shared Function BuildBinding(app As RevitApp, cats As CategorySet, isInstance As Boolean) As Binding
+            If isInstance Then
+                Return app.Create.NewInstanceBinding(cats)
+            Else
+                Return app.Create.NewTypeBinding(cats)
+            End If
+        End Function
+
+        Private Shared Function TryInsertOrReinsert(map As BindingMap,
+                                                   extDef As ExternalDefinition,
+                                                   binding As Binding,
+                                                   pg As BuiltInParameterGroup) As Boolean
+            If map Is Nothing OrElse extDef Is Nothing OrElse binding Is Nothing Then Return False
+
+            Dim ok As Boolean = False
+            Try
+                ok = map.Insert(extDef, binding, pg)
+                If Not ok Then
+                    ok = map.ReInsert(extDef, binding, pg)
+                End If
+            Catch
+                ok = False
+            End Try
+            Return ok
+        End Function
+
         Private Shared Function DescribeCategoryRef(cref As CategoryRef) As String
             If cref Is Nothing Then Return "(null)"
-            Dim p As String = If(cref.Path, "").Trim()
-            If p <> "" Then
-                Return p & " (SavedId=" & cref.IdInt & ")"
+            Dim pth As String = If(cref.Path, "").Trim()
+            If pth <> "" Then
+                Return pth & " (SavedId=" & cref.IdInt & ")"
             End If
             Dim n As String = If(cref.Name, "").Trim()
             If n <> "" Then
@@ -624,10 +682,10 @@ Namespace Global.KKY_Tool_Revit
 
             Dim cat As Category = Nothing
 
-            ' Prefer Path (more stable across docs for subcategories)
-            Dim path As String = If(cref.Path, "").Trim()
-            If path <> "" Then
-                If maps.ByPath.TryGetValue(path, cat) AndAlso cat IsNot Nothing Then
+            ' Prefer Path
+            Dim pathStr As String = If(cref.Path, "").Trim()
+            If pathStr <> "" Then
+                If maps.ByPath.TryGetValue(pathStr, cat) AndAlso cat IsNot Nothing Then
                     resolvedBy = "path"
                     Return cat
                 End If
@@ -656,8 +714,6 @@ Namespace Global.KKY_Tool_Revit
                     Dim kExt As ExternalDefinition = TryCast(kDef, ExternalDefinition)
 
                     If kExt IsNot Nothing AndAlso kExt.GUID = extDefGuid Then
-
-                        ' ✅ Revit 2019: 반드시 ElementBinding으로 캐스팅
                         Dim eb As ElementBinding = TryCast(it.Current, ElementBinding)
                         If eb IsNot Nothing Then
                             Dim cs As CategorySet = eb.Categories
@@ -669,13 +725,10 @@ Namespace Global.KKY_Tool_Revit
                                 Next
                             End If
                         End If
-
                         Exit While
                     End If
                 End While
-
             Catch
-                ' ignore
             End Try
 
             Return hs
@@ -717,6 +770,69 @@ Namespace Global.KKY_Tool_Revit
             End Try
 
             Return False
+        End Function
+
+        ' Vary Between Groups helper (apply after binding commit)
+        Private Shared Function TrySetAllowVaryBetweenGroups(doc As Document, guid As Guid, allowVary As Boolean, ByRef warn As String) As Boolean
+            warn = ""
+            If doc Is Nothing Then
+                warn = "VARY_SET_FAIL: doc is null"
+                Return False
+            End If
+
+            Try
+                Using t As New Autodesk.Revit.DB.Transaction(doc, "Set Vary Between Groups")
+                    t.Start()
+
+                    Dim spe As SharedParameterElement = SharedParameterElement.Lookup(doc, guid)
+                    If spe Is Nothing Then
+                        spe = FindSharedParameterElementByGuid(doc, guid)
+                    End If
+
+                    If spe Is Nothing Then
+                        t.RollBack()
+                        warn = "VARY_SET_FAIL: SharedParameterElement not found (GUID=" & guid.ToString() & ")"
+                        Return False
+                    End If
+
+                    Dim idef As InternalDefinition = TryCast(spe.GetDefinition(), InternalDefinition)
+                    If idef Is Nothing Then
+                        t.RollBack()
+                        warn = "VARY_SET_FAIL: InternalDefinition not found (GUID=" & guid.ToString() & ")"
+                        Return False
+                    End If
+
+                    idef.SetAllowVaryBetweenGroups(doc, allowVary)
+
+                    Try
+                        doc.Regenerate()
+                    Catch
+                    End Try
+
+                    t.Commit()
+                End Using
+
+                Return True
+
+            Catch ex As Exception
+                warn = "VARY_SET_FAIL: " & ex.Message
+                Return False
+            End Try
+        End Function
+
+        Private Shared Function FindSharedParameterElementByGuid(doc As Document, guid As Guid) As SharedParameterElement
+            If doc Is Nothing Then Return Nothing
+            Try
+                Dim col As New FilteredElementCollector(doc)
+                col.OfClass(GetType(SharedParameterElement))
+                For Each el As Element In col
+                    Dim spe As SharedParameterElement = TryCast(el, SharedParameterElement)
+                    If spe Is Nothing Then Continue For
+                    If spe.GuidValue = guid Then Return spe
+                Next
+            Catch
+            End Try
+            Return Nothing
         End Function
 
 #End Region
@@ -793,110 +909,327 @@ Namespace Global.KKY_Tool_Revit
 
 #End Region
 
-#Region "Categories Tree Build (SubCategories + Path)"
+#Region "Categories Tree Build (include non-bindable leaves + Parent chain path)"
 
-        Private Shared Function BuildCategoryTree(doc As Document) As List(Of CategoryTreeItem)
-            Dim roots As New List(Of CategoryTreeItem)()
-            Dim visitedPaths As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        ' Try-get Category even if Settings.Categories enumeration misses it in current doc state
+        Private Shared Function TryGetCategoryByBuiltIn(doc As Document, bic As BuiltInCategory) As Category
+            If doc Is Nothing Then Return Nothing
 
-            For Each c As Category In doc.Settings.Categories
-                Dim node As CategoryTreeItem = BuildCategoryTreeItemRecursive(c, Nothing, visitedPaths)
-                If node IsNot Nothing Then roots.Add(node)
-            Next
+            Dim cat As Category = Nothing
 
-            Return roots.OrderBy(Function(x) x.Name).ToList()
-        End Function
-
-        Private Shared Function BuildCategoryTreeItemRecursive(cat As Category,
-                                                              parentPath As String,
-                                                              visitedPaths As HashSet(Of String)) As CategoryTreeItem
-            If cat Is Nothing Then Return Nothing
-
-            Dim path As String = If(String.IsNullOrEmpty(parentPath), cat.Name, parentPath & "\" & cat.Name)
-
-            If visitedPaths IsNot Nothing Then
-                If visitedPaths.Contains(path) Then Return Nothing
-                visitedPaths.Add(path)
-            End If
-
-            Dim bindable As Boolean = False
+            ' 1) Category.GetCategory 우선
             Try
-                bindable = cat.AllowsBoundParameters
+                cat = Category.GetCategory(doc, bic)
+                If cat IsNot Nothing Then Return cat
             Catch
-                bindable = False
+                cat = Nothing
             End Try
 
-            Dim it As New CategoryTreeItem() With {
-                .IdInt = cat.Id.IntegerValue,
-                .Name = cat.Name,
-                .Path = path,
-                .CatType = cat.CategoryType,
-                .IsBindable = bindable
+            ' 2) Settings.Categories.Item(bic) 백업 (VB는 get_Item 아님)
+            Try
+                cat = doc.Settings.Categories.Item(bic)
+                If cat IsNot Nothing Then Return cat
+            Catch
+                cat = Nothing
+            End Try
+
+            Return Nothing
+        End Function
+
+        ' Known missing candidates (keep minimal + targeted)
+        Private Shared Sub EnsureExtraBuiltInCategories(doc As Document, dict As Dictionary(Of Integer, Category))
+            If doc Is Nothing OrElse dict Is Nothing Then Return
+
+            Dim bics As BuiltInCategory() = New BuiltInCategory() {
+                BuiltInCategory.OST_Stairs,
+                BuiltInCategory.OST_StairsRuns,
+                BuiltInCategory.OST_StairsLandings,
+                BuiltInCategory.OST_StairsSupports
             }
 
-            Try
-                Dim subs As CategoryNameMap = cat.SubCategories
-                If subs IsNot Nothing Then
+            For Each bic As BuiltInCategory In bics
+                Dim c As Category = Nothing
+                Try
+                    c = TryGetCategoryByBuiltIn(doc, bic)
+                Catch
+                    c = Nothing
+                End Try
+
+                If c Is Nothing Then Continue For
+
+                Dim idInt As Integer = c.Id.IntegerValue
+                If Not dict.ContainsKey(idInt) Then
+                    dict.Add(idInt, c)
+                End If
+            Next
+        End Sub
+
+        ' Build parent map primarily using SubCategories (more reliable than Category.Parent for some categories)
+        Private Shared Function BuildParentMap(doc As Document, catsById As Dictionary(Of Integer, Category)) As Dictionary(Of Integer, Integer)
+            Dim parentByChild As New Dictionary(Of Integer, Integer)()
+            If catsById Is Nothing OrElse catsById.Count = 0 Then Return parentByChild
+
+            ' 1) Primary: SubCategories graph
+            For Each kv As KeyValuePair(Of Integer, Category) In catsById
+                Dim parentCat As Category = kv.Value
+                Dim pid As Integer = kv.Key
+                If parentCat Is Nothing Then Continue For
+
+                Try
+                    Dim subs As CategoryNameMap = parentCat.SubCategories
+                    If subs Is Nothing Then Continue For
+
                     For Each sc As Category In subs
-                        Dim child As CategoryTreeItem = BuildCategoryTreeItemRecursive(sc, path, visitedPaths)
-                        If child IsNot Nothing Then it.Children.Add(child)
+                        If sc Is Nothing Then Continue For
+                        Dim cid As Integer = sc.Id.IntegerValue
+                        If cid = pid Then Continue For
+                        If Not parentByChild.ContainsKey(cid) Then
+                            parentByChild.Add(cid, pid)
+                        End If
                     Next
+                Catch
+                End Try
+            Next
+
+            ' 2) Fallback: Category.Parent for unlinked items
+            For Each kv As KeyValuePair(Of Integer, Category) In catsById
+                Dim childCat As Category = kv.Value
+                Dim cid As Integer = kv.Key
+                If childCat Is Nothing Then Continue For
+                If parentByChild.ContainsKey(cid) Then Continue For
+
+                Try
+                    Dim par As Category = childCat.Parent
+                    If par Is Nothing Then Continue For
+                    Dim pid As Integer = par.Id.IntegerValue
+                    If pid <> cid AndAlso catsById.ContainsKey(pid) Then
+                        parentByChild(cid) = pid
+                    End If
+                Catch
+                End Try
+            Next
+
+            ' 3) Explicit fix: Stairs\Supports link (OST_StairsSupports -> OST_Stairs)
+            Try
+                Dim cSupports As Category = TryGetCategoryByBuiltIn(doc, BuiltInCategory.OST_StairsSupports)
+                Dim cStairs As Category = TryGetCategoryByBuiltIn(doc, BuiltInCategory.OST_Stairs)
+                If cSupports IsNot Nothing AndAlso cStairs IsNot Nothing Then
+                    Dim cid As Integer = cSupports.Id.IntegerValue
+                    Dim pid As Integer = cStairs.Id.IntegerValue
+                    If cid <> pid Then
+                        parentByChild(cid) = pid
+                    End If
                 End If
             Catch
             End Try
 
-            ' keep bindable nodes OR nodes that have any descendants
-            If it.IsBindable Then Return it
-            If it.Children IsNot Nothing AndAlso it.Children.Count > 0 Then Return it
-            Return Nothing
+            Return parentByChild
         End Function
 
-        Private Shared Function BuildAvailableCategoryMaps(doc As Document) As CategoryMaps
-            Dim maps As New CategoryMaps()
-            Dim visitedPaths As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        Private Shared Function BuildCategoryTree(doc As Document) As List(Of CategoryTreeItem)
+            Dim catsById As Dictionary(Of Integer, Category) = BuildFlatCategories(doc)
+            If catsById.Count = 0 Then Return New List(Of CategoryTreeItem)()
 
+            Dim parentMap As Dictionary(Of Integer, Integer) = BuildParentMap(doc, catsById)
+
+            ' memoized path by id (Parent chain via parentMap)
+            Dim pathCache As New Dictionary(Of Integer, String)()
+
+            Dim nodesById As New Dictionary(Of Integer, CategoryTreeItem)()
+            For Each kv As KeyValuePair(Of Integer, Category) In catsById
+                Dim cat As Category = kv.Value
+                If cat Is Nothing Then Continue For
+
+                Dim bindable As Boolean = False
+                Try
+                    bindable = cat.AllowsBoundParameters
+                Catch
+                    bindable = False
+                End Try
+
+                ' ===== FIX: CType 키워드 충돌 제거 =====
+                Dim catTypeVal As CategoryType = CategoryType.Model
+                Try
+                    catTypeVal = cat.CategoryType
+                Catch
+                    catTypeVal = CategoryType.Model
+                End Try
+                ' =======================================
+
+                Dim node As New CategoryTreeItem() With {
+                    .IdInt = kv.Key,
+                    .Name = cat.Name,
+                    .CatType = catTypeVal,
+                    .IsBindable = bindable,
+                    .Path = GetCategoryPath(kv.Key, catsById, parentMap, pathCache)
+                }
+                nodesById(kv.Key) = node
+            Next
+
+            ' link by parentMap (SubCategories-first)
+            Dim roots As New List(Of CategoryTreeItem)()
+            For Each kv As KeyValuePair(Of Integer, CategoryTreeItem) In nodesById
+                Dim cid As Integer = kv.Key
+                Dim node As CategoryTreeItem = kv.Value
+                If node Is Nothing Then Continue For
+
+                Dim pid As Integer = Integer.MinValue
+                If parentMap IsNot Nothing AndAlso parentMap.TryGetValue(cid, pid) AndAlso pid <> cid AndAlso nodesById.ContainsKey(pid) Then
+                    nodesById(pid).Children.Add(node)
+                Else
+                    roots.Add(node)
+                End If
+            Next
+
+            ' remove duplicates in roots (safety)
+            Dim uniq As New Dictionary(Of Integer, CategoryTreeItem)()
+            For Each r As CategoryTreeItem In roots
+                If r Is Nothing Then Continue For
+                If Not uniq.ContainsKey(r.IdInt) Then uniq.Add(r.IdInt, r)
+            Next
+
+            Dim rootList As New List(Of CategoryTreeItem)()
+            For Each v As CategoryTreeItem In uniq.Values
+                rootList.Add(v)
+            Next
+
+            ' sort recursively
+            SortCategoryTreeRecursive(rootList)
+
+            Return rootList
+        End Function
+
+        Private Shared Sub SortCategoryTreeRecursive(list As List(Of CategoryTreeItem))
+            If list Is Nothing Then Return
+            list.Sort(Function(a, b) String.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase))
+            For Each it As CategoryTreeItem In list
+                If it.Children IsNot Nothing AndAlso it.Children.Count > 0 Then
+                    SortCategoryTreeRecursive(it.Children)
+                End If
+            Next
+        End Sub
+
+        Private Shared Function BuildFlatCategories(doc As Document) As Dictionary(Of Integer, Category)
+            Dim dict As New Dictionary(Of Integer, Category)()
             Try
                 For Each c As Category In doc.Settings.Categories
-                    CollectCategoryRecursive(c, Nothing, maps, visitedPaths)
+                    CollectCategoryRecursive(c, dict)
                 Next
             Catch
             End Try
 
-            Return maps
+            ' IMPORTANT: Ensure Stairs\Supports (and related) exist even if enumeration misses it
+            EnsureExtraBuiltInCategories(doc, dict)
+
+            Return dict
         End Function
 
-        Private Shared Sub CollectCategoryRecursive(cat As Category,
-                                                    parentPath As String,
-                                                    maps As CategoryMaps,
-                                                    visitedPaths As HashSet(Of String))
-            If cat Is Nothing OrElse maps Is Nothing Then Return
-
-            Dim path As String = If(String.IsNullOrEmpty(parentPath), cat.Name, parentPath & "\" & cat.Name)
-
-            If visitedPaths IsNot Nothing Then
-                If visitedPaths.Contains(path) Then Return
-                visitedPaths.Add(path)
-            End If
+        Private Shared Sub CollectCategoryRecursive(cat As Category, dict As Dictionary(Of Integer, Category))
+            If cat Is Nothing OrElse dict Is Nothing Then Return
 
             Dim idInt As Integer = cat.Id.IntegerValue
-
-            If Not maps.ById.ContainsKey(idInt) Then
-                maps.ById.Add(idInt, cat)
-            End If
-            If Not maps.ByPath.ContainsKey(path) Then
-                maps.ByPath.Add(path, cat)
+            If Not dict.ContainsKey(idInt) Then
+                dict.Add(idInt, cat)
             End If
 
             Try
                 Dim subs As CategoryNameMap = cat.SubCategories
                 If subs IsNot Nothing Then
                     For Each sc As Category In subs
-                        CollectCategoryRecursive(sc, path, maps, visitedPaths)
+                        CollectCategoryRecursive(sc, dict)
                     Next
                 End If
             Catch
             End Try
         End Sub
+
+        Private Shared Function GetCategoryPath(idInt As Integer,
+                                               catsById As Dictionary(Of Integer, Category),
+                                               parentMap As Dictionary(Of Integer, Integer),
+                                               cache As Dictionary(Of Integer, String)) As String
+            If cache IsNot Nothing AndAlso cache.ContainsKey(idInt) Then
+                Return cache(idInt)
+            End If
+
+            Dim visiting As New HashSet(Of Integer)()
+            Dim pathStr As String = GetCategoryPathInternal(idInt, catsById, parentMap, cache, visiting)
+            Return pathStr
+        End Function
+
+        Private Shared Function GetCategoryPathInternal(idInt As Integer,
+                                                       catsById As Dictionary(Of Integer, Category),
+                                                       parentMap As Dictionary(Of Integer, Integer),
+                                                       cache As Dictionary(Of Integer, String),
+                                                       visiting As HashSet(Of Integer)) As String
+            If cache IsNot Nothing AndAlso cache.ContainsKey(idInt) Then
+                Return cache(idInt)
+            End If
+
+            If visiting.Contains(idInt) Then
+                Dim nmLoop As String = ""
+                If catsById IsNot Nothing AndAlso catsById.ContainsKey(idInt) AndAlso catsById(idInt) IsNot Nothing Then
+                    nmLoop = catsById(idInt).Name
+                Else
+                    nmLoop = idInt.ToString()
+                End If
+                If cache IsNot Nothing Then cache(idInt) = nmLoop
+                Return nmLoop
+            End If
+
+            visiting.Add(idInt)
+
+            Dim cat As Category = Nothing
+            If catsById Is Nothing OrElse Not catsById.TryGetValue(idInt, cat) OrElse cat Is Nothing Then
+                visiting.Remove(idInt)
+                If cache IsNot Nothing Then cache(idInt) = idInt.ToString()
+                Return idInt.ToString()
+            End If
+
+            Dim result As String = cat.Name
+
+            Dim pid As Integer = Integer.MinValue
+            If parentMap IsNot Nothing AndAlso parentMap.TryGetValue(idInt, pid) Then
+                If pid <> idInt AndAlso catsById.ContainsKey(pid) Then
+                    Dim pPath As String = GetCategoryPathInternal(pid, catsById, parentMap, cache, visiting)
+                    result = pPath & "\" & cat.Name
+                End If
+            End If
+
+            visiting.Remove(idInt)
+
+            If cache IsNot Nothing Then
+                cache(idInt) = result
+            End If
+
+            Return result
+        End Function
+
+        Private Shared Function BuildAvailableCategoryMaps(doc As Document) As CategoryMaps
+            Dim maps As New CategoryMaps()
+
+            Dim catsById As Dictionary(Of Integer, Category) = BuildFlatCategories(doc)
+            Dim parentMap As Dictionary(Of Integer, Integer) = BuildParentMap(doc, catsById)
+            Dim pathCache As New Dictionary(Of Integer, String)()
+
+            For Each kv As KeyValuePair(Of Integer, Category) In catsById
+                Dim idInt As Integer = kv.Key
+                Dim cat As Category = kv.Value
+                If cat Is Nothing Then Continue For
+
+                If Not maps.ById.ContainsKey(idInt) Then
+                    maps.ById.Add(idInt, cat)
+                End If
+
+                Dim pth As String = GetCategoryPath(idInt, catsById, parentMap, pathCache)
+                If Not String.IsNullOrWhiteSpace(pth) Then
+                    If Not maps.ByPath.ContainsKey(pth) Then
+                        maps.ByPath.Add(pth, cat)
+                    End If
+                End If
+            Next
+
+            Return maps
+        End Function
 
 #End Region
 
@@ -1427,18 +1760,17 @@ Namespace Global.KKY_Tool_Revit
                 Dim s As New ParamBindingSettings()
                 s.IsInstanceBinding = rdoInstance.Checked
                 s.ParamGroup = GetSelectedParamGroup()
-
                 s.AllowVaryBetweenGroups = (rdoInstance.Checked AndAlso rdoVaryEach.Checked)
 
                 Dim list As New List(Of CategoryRef)()
                 For Each kv As KeyValuePair(Of Integer, Boolean) In _checked
                     If Not kv.Value Then Continue For
                     Dim idInt As Integer = kv.Key
-                    Dim path As String = ""
-                    Dim name As String = ""
-                    If _idToPath.ContainsKey(idInt) Then path = _idToPath(idInt)
-                    If _idToName.ContainsKey(idInt) Then name = _idToName(idInt)
-                    list.Add(New CategoryRef() With {.IdInt = idInt, .Path = path, .Name = name})
+                    Dim pathStr As String = ""
+                    Dim nameStr As String = ""
+                    If _idToPath.ContainsKey(idInt) Then pathStr = _idToPath(idInt)
+                    If _idToName.ContainsKey(idInt) Then nameStr = _idToName(idInt)
+                    list.Add(New CategoryRef() With {.IdInt = idInt, .Path = pathStr, .Name = nameStr})
                 Next
                 s.Categories = list
 
@@ -1591,9 +1923,9 @@ Namespace Global.KKY_Tool_Revit
                     .CheckBoxes = True,
                     .ShowLines = True,
                     .ShowPlusMinus = True,
-                    .ShowRootLines = True
+                    .ShowRootLines = True,
+                    .ShowNodeToolTips = True
                 }
-                AddHandler tvCats.BeforeCheck, AddressOf OnBeforeCheckTree
                 AddHandler tvCats.AfterCheck, AddressOf OnAfterCheckTree
                 cat.Controls.Add(tvCats, 0, 1)
                 cat.SetColumnSpan(tvCats, 3)
@@ -1623,27 +1955,50 @@ Namespace Global.KKY_Tool_Revit
 
             Private Sub FillParamGroupCombo()
                 cmbParamGroup.Items.Clear()
+
                 Dim items As New List(Of ParamGroupItem)()
 
-                For Each v As BuiltInParameterGroup In [Enum].GetValues(GetType(BuiltInParameterGroup))
+                Dim vals As Array = System.Enum.GetValues(GetType(BuiltInParameterGroup))
+                For Each vObj As Object In vals
+                    Dim v As BuiltInParameterGroup = CType(vObj, BuiltInParameterGroup)
+
                     Dim label As String = ""
                     Try
                         label = LabelUtils.GetLabelFor(v)
                     Catch
                         label = v.ToString()
                     End Try
+
                     items.Add(New ParamGroupItem(v, label))
                 Next
 
-                items = items.OrderBy(Function(x) x.Label).ToList()
+                items.Sort(AddressOf CompareParamGroupItem)
+
                 For Each it As ParamGroupItem In items
                     cmbParamGroup.Items.Add(it)
                 Next
 
-                Dim def = items.FirstOrDefault(Function(x) x.Value = BuiltInParameterGroup.PG_DATA)
-                If def IsNot Nothing Then cmbParamGroup.SelectedItem = def
-                If cmbParamGroup.SelectedIndex < 0 AndAlso cmbParamGroup.Items.Count > 0 Then cmbParamGroup.SelectedIndex = 0
+                Dim defaultItem As ParamGroupItem = Nothing
+                For Each it As ParamGroupItem In items
+                    If it.Value = BuiltInParameterGroup.PG_DATA Then
+                        defaultItem = it
+                        Exit For
+                    End If
+                Next
+
+                If defaultItem IsNot Nothing Then
+                    cmbParamGroup.SelectedItem = defaultItem
+                ElseIf cmbParamGroup.Items.Count > 0 Then
+                    cmbParamGroup.SelectedIndex = 0
+                End If
             End Sub
+
+            Private Shared Function CompareParamGroupItem(a As ParamGroupItem, b As ParamGroupItem) As Integer
+                If a Is Nothing AndAlso b Is Nothing Then Return 0
+                If a Is Nothing Then Return -1
+                If b Is Nothing Then Return 1
+                Return String.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase)
+            End Function
 
             Private Function GetSelectedParamGroup() As BuiltInParameterGroup
                 Dim it As ParamGroupItem = TryCast(cmbParamGroup.SelectedItem, ParamGroupItem)
@@ -1721,7 +2076,7 @@ Namespace Global.KKY_Tool_Revit
                 tvCats.Nodes.Clear()
 
                 _suppressTreeEvents = True
-                For Each root As CategoryTreeItem In _categoryTree.OrderBy(Function(x) x.Name)
+                For Each root As CategoryTreeItem In _categoryTree
                     Dim node As WinForms.TreeNode = BuildTreeNodeRecursive(root, filter, chkHideUnchecked.Checked)
                     If node IsNot Nothing Then tvCats.Nodes.Add(node)
                 Next
@@ -1745,10 +2100,13 @@ Namespace Global.KKY_Tool_Revit
 
                 If Not item.IsBindable Then
                     tn.ForeColor = SystemColors.GrayText
+                    tn.ToolTipText = item.Path & vbCrLf & "※ AllowsBoundParameters=False (Revit이 바인딩을 드랍할 수 있음)"
+                Else
+                    tn.ToolTipText = item.Path
                 End If
 
                 If item.Children IsNot Nothing AndAlso item.Children.Count > 0 Then
-                    For Each ch As CategoryTreeItem In item.Children.OrderBy(Function(x) x.Name)
+                    For Each ch As CategoryTreeItem In item.Children
                         Dim childNode As WinForms.TreeNode = BuildTreeNodeRecursive(ch, filter, hideUnchecked)
                         If childNode IsNot Nothing Then
                             tn.Nodes.Add(childNode)
@@ -1792,20 +2150,10 @@ Namespace Global.KKY_Tool_Revit
                 Return False
             End Function
 
-            Private Sub OnBeforeCheckTree(sender As Object, e As WinForms.TreeViewCancelEventArgs)
-                If _suppressTreeEvents Then Return
-                Dim it As CategoryTreeItem = TryCast(e.Node.Tag, CategoryTreeItem)
-                If it IsNot Nothing AndAlso Not it.IsBindable Then
-                    e.Cancel = True
-                End If
-            End Sub
-
             Private Sub OnAfterCheckTree(sender As Object, e As WinForms.TreeViewEventArgs)
                 If _suppressTreeEvents Then Return
-
                 Dim it As CategoryTreeItem = TryCast(e.Node.Tag, CategoryTreeItem)
                 If it Is Nothing Then Return
-                If Not it.IsBindable Then Return
 
                 Dim newState As Boolean = e.Node.Checked
 
@@ -1823,12 +2171,8 @@ Namespace Global.KKY_Tool_Revit
 
                 Dim it As CategoryTreeItem = TryCast(node.Tag, CategoryTreeItem)
                 If it IsNot Nothing Then
-                    If it.IsBindable Then
-                        node.Checked = state
-                        _checked(it.IdInt) = state
-                    Else
-                        node.Checked = False
-                    End If
+                    node.Checked = state
+                    _checked(it.IdInt) = state
                 End If
 
                 For Each ch As WinForms.TreeNode In node.Nodes
@@ -1837,23 +2181,23 @@ Namespace Global.KKY_Tool_Revit
             End Sub
 
             Private Sub SetAllChecked(value As Boolean)
-                Dim allBindable As New List(Of Integer)()
-                CollectBindableIds(_categoryTree, allBindable)
+                Dim allIds As New List(Of Integer)()
+                CollectAllIds(_categoryTree, allIds)
 
-                For Each idInt As Integer In allBindable
+                For Each idInt As Integer In allIds
                     _checked(idInt) = value
                 Next
 
                 RebuildTree()
             End Sub
 
-            Private Sub CollectBindableIds(items As List(Of CategoryTreeItem), ByRef outList As List(Of Integer))
+            Private Sub CollectAllIds(items As List(Of CategoryTreeItem), ByRef outList As List(Of Integer))
                 If items Is Nothing Then Return
                 For Each it As CategoryTreeItem In items
                     If it Is Nothing Then Continue For
-                    If it.IsBindable Then outList.Add(it.IdInt)
+                    outList.Add(it.IdInt)
                     If it.Children IsNot Nothing AndAlso it.Children.Count > 0 Then
-                        CollectBindableIds(it.Children, outList)
+                        CollectAllIds(it.Children, outList)
                     End If
                 Next
             End Sub

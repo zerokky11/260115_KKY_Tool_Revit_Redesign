@@ -1,0 +1,96 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<!-- Revit 2019 -->
+		<TargetFramework>net472</TargetFramework>
+		<OutputType>Library</OutputType>
+
+		<PlatformTarget>x64</PlatformTarget>
+		<Prefer32Bit>false</Prefer32Bit>
+
+		<RootNamespace></RootNamespace>
+		<AssemblyName>ColumnEqCodeBatchTools</AssemblyName>
+
+		<UseWindowsForms>true</UseWindowsForms>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+		<RevitYear>2019</RevitYear>
+		<AddinName>ColumnEqCodeBatchTools</AddinName>
+		<VendorId>YOUR_VENDOR</VendorId>
+
+		<!-- 단일 UI 커맨드 GUID -->
+		<AddInIdMain>dddddddd-dddd-dddd-dddd-dddddddddddd</AddInIdMain>
+
+		<RevitUserAddinsFolder>$(APPDATA)\Autodesk\Revit\Addins\$(RevitYear)</RevitUserAddinsFolder>
+		<DeployFolder>$(RevitUserAddinsFolder)\$(AddinName)</DeployFolder>
+		<ManifestPath>$(RevitUserAddinsFolder)\$(AddinName).addin</ManifestPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ClosedXML" Version="0.95.4" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="RevitAPI">
+			<HintPath>C:\Program Files\Autodesk\Revit 2019\RevitAPI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>C:\Program Files\Autodesk\Revit 2019\RevitAPIUI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+
+		<Reference Include="System.Windows.Forms" />
+		<Reference Include="System.Drawing" />
+	</ItemGroup>
+
+	<Target Name="ValidateRevitRefs" BeforeTargets="Build">
+		<Error Condition="!Exists('C:\Program Files\Autodesk\Revit 2019\RevitAPI.dll')"
+			   Text="RevitAPI.dll을 찾을 수 없습니다. HintPath를 실제 Revit 2019 설치 경로로 수정하세요." />
+		<Error Condition="!Exists('C:\Program Files\Autodesk\Revit 2019\RevitAPIUI.dll')"
+			   Text="RevitAPIUI.dll을 찾을 수 없습니다. HintPath를 실제 Revit 2019 설치 경로로 수정하세요." />
+	</Target>
+
+	<!-- 빌드 후 자동 배포 + .addin 생성 -->
+	<Target Name="DeployToRevitAddins" AfterTargets="Build">
+		<MakeDir Directories="$(DeployFolder)" />
+
+		<ItemGroup>
+			<_DeployDlls Include="$(TargetDir)*.dll" />
+			<_DeployPdbs Include="$(TargetDir)*.pdb" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(_DeployDlls)" DestinationFolder="$(DeployFolder)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="@(_DeployPdbs)" DestinationFolder="$(DeployFolder)" SkipUnchangedFiles="true"
+			  Condition=" '@(_DeployPdbs)' != '' " />
+
+		<ItemGroup>
+			<_AddinLines Include="&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; standalone=&quot;no&quot;?&gt;" />
+			<_AddinLines Include="&lt;RevitAddIns&gt;" />
+
+			<_AddinLines Include="  &lt;AddIn Type=&quot;Command&quot;&gt;" />
+			<_AddinLines Include="    &lt;Name&gt;$(AddinName) - Main&lt;/Name&gt;" />
+			<_AddinLines Include="    &lt;Assembly&gt;$(DeployFolder)\$(TargetFileName)&lt;/Assembly&gt;" />
+			<_AddinLines Include="    &lt;AddInId&gt;$(AddInIdMain)&lt;/AddInId&gt;" />
+			<_AddinLines Include="    &lt;FullClassName&gt;ColumnEqCodeBatchTools.Cmd_MainUI&lt;/FullClassName&gt;" />
+			<_AddinLines Include="    &lt;Text&gt;Column EqCode Batch Tools&lt;/Text&gt;" />
+			<_AddinLines Include="    &lt;VendorId&gt;$(VendorId)&lt;/VendorId&gt;" />
+			<_AddinLines Include="  &lt;/AddIn&gt;" />
+
+			<_AddinLines Include="&lt;/RevitAddIns&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(ManifestPath)"
+						  Lines="@(_AddinLines)"
+						  Overwrite="true"
+						  Encoding="UTF-8" />
+	</Target>
+
+	<!-- Revit Addin에는 My Project 불필요: 충돌(AssemblyInfo/Settings) 방지 -->
+	<ItemGroup>
+		<Compile Remove="My Project\**\*.vb" />
+		<None Remove="My Project\**\*.*" />
+		<EmbeddedResource Remove="My Project\**\*.*" />
+	</ItemGroup>
+
+</Project>
